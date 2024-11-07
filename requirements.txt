@@ -1,0 +1,3 @@
+grove.py==0.6
+seeed_python_dht==0.0.2
+dependency-injector
