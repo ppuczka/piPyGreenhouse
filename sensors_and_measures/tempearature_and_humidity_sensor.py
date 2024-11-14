@@ -5,6 +5,7 @@ import seeed_dht
 
 __all__ = ["TemperatureHumiditySensor"]
 
+
 class AirHumidityLevel(Enum):
     HIGH = "high"
     OPTIMAL = "optimal" 
@@ -13,6 +14,7 @@ class AirHumidityLevel(Enum):
     def __str__(self):
         return self.value
 
+
 class AirTemperatureLevel(Enum):
     HIGH = "high"
     OPTIMAL = "optimal" 
@@ -20,9 +22,9 @@ class AirTemperatureLevel(Enum):
     
     def __str__(self):
         return self.value
+
     
-class AirHumidity:
-    
+class AirHumidity:    
     def __init__(self, humidity: float):
         self.humidity = humidity
         
@@ -35,7 +37,6 @@ class AirHumidity:
 
  
 class AirTemperature:
-    
     def __init__(self, temperature: float):
         self.temperature = temperature
         
@@ -48,14 +49,15 @@ class AirTemperature:
                
 
 class TemperatureHumiditySensor:
-    
     def __init__(self, dht_sensor_type: str, pin: str):
         self.sensor = seeed_dht.DHT(dht_sensor_type, pin)
+    
     
     def get_humidity(self):
         logging.info("Detecting humidity...")
         humidity, _ = self.sensor.read()
         return AirHumidity(humidity)
+    
     
     def get_temperature(self):
         logging.info("Detecting temperature...")

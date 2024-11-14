@@ -11,8 +11,8 @@ class SoilMoistureLevel(Enum):
     def __str__(self):
         return self.value
     
-class SoilMoisture:
     
+class SoilMoisture:
     def __init__(self, sensor_value: int):
         self.sensor_value = sensor_value
 
@@ -22,6 +22,7 @@ class SoilMoisture:
             self.moisture_level= SoilMoistureLevel.MOIST
         else:
             self.moisture_level = SoilMoistureLevel.WET
+    
     
     @property
     def getSoilMoisture(self):

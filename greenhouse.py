@@ -3,47 +3,54 @@ import logging
 import time
 
 from datetime import datetime
+from azure_services import AzureCosmosDbClient
+from models import Greenhouse
+import azure.cosmos.exceptions as exceptions
 from sensors_and_measures.moisture_sensor import SoilMoistureSensor
-from sensors_and_measures.soil_moisture import SoilMoisture
-from sensors_and_measures.tempearature_and_humidity_sensor import AirHumidity, AirTemperature, TemperatureHumiditySensor
+from sensors_and_measures.tempearature_and_humidity_sensor import TemperatureHumiditySensor
 
-
-class Greenhouse:
-    def __init__(
-        self,
-        soil_moisture: SoilMoisture,
-        air_temperature: AirTemperature,
-        air_humidity: AirHumidity
-    ):
-        self.datetime = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        self.soil_moisture = soil_moisture
-        self.air_temperature = air_temperature
-        self.air_humidity = air_humidity
-
-    def __str__(self): return f'''Date & time: {self.datetime}
-                        Soil moisture (value: {self.soil_moisture.sensor_value}, moisture_level: {self.soil_moisture.moisture_level})
-                        Air temperature (value: {self.air_temperature.temperature}, temperature_level: {self.air_temperature.temperature_level}) 
-                        Air humidity (value: {self.air_humidity.humidity}, humidity_level: {self.air_humidity.humidity_level}) '''
 
 class GreenhouseService:
-    def __init__(self, 
-                 soil_moisture_sensor: SoilMoistureSensor,
-                 temp_humid_sensor: TemperatureHumiditySensor):
+    def __init__(
+        self, 
+        soil_moisture_sensor: SoilMoistureSensor,
+        temp_humid_sensor: TemperatureHumiditySensor,
+        db_client: AzureCosmosDbClient 
+        ):
         
         self.soil_moisture_sensor = soil_moisture_sensor
         self.temp_humid_sensor = temp_humid_sensor
-    
-    def measure(self):
-        print("Measuring...")
-        while True:
-            soil_moisture = self.soil_moisture_sensor.get_soil_moisture()
-            air_temp = self.temp_humid_sensor.get_temperature()
-            air_humid = self.temp_humid_sensor.get_humidity()
-            greenhouse_metrics = Greenhouse(
-                soil_moisture=soil_moisture,
-                air_temperature=air_temp,
-                air_humidity=air_humid
-                )
-            logging.info(greenhouse_metrics)
-            time.sleep(1)
+        self.db_client = db_client
+
+
+    def start_measuring(self, interval_in_minutes: int = 10):
+        while True: 
+            logging.info('saving current measures to db')
+            self.save_measurement()
+            logging.info('waiting for {0} minutes until next measure'.format(interval_in_minutes))
+            time.sleep(interval_in_minutes * 60)
             
+            
+    def save_measurement(self):
+        metrics = self.measure()  
+        try:
+            result = self.db_client.insert_measure(measure=metrics)        
+        except exceptions.CosmosHttpResponseError as e:
+            logging.error('save_measurement has caught an error. {0}'.format(e.message))
+        logging.info('measures saved in database with id: {0}'.format(result["id"]))
+      
+                           
+    def measure(self) -> Greenhouse:
+        logging.info("Measuring...")
+
+        soil_moisture = self.soil_moisture_sensor.get_soil_moisture()
+        air_temp = self.temp_humid_sensor.get_temperature()
+        air_humid = self.temp_humid_sensor.get_humidity()
+        greenhouse_metrics = Greenhouse(
+            soil_moisture=soil_moisture,
+            air_temperature=air_temp,
+            air_humidity=air_humid
+            )
+        logging.info(greenhouse_metrics.to_cosmos_db_item)
+        return greenhouse_metrics
+    
