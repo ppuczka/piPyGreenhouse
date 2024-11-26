@@ -1,0 +1,2 @@
+# Run piPyGreenhouse every 5 minutes 
+*/15 * * * * cd /home/pi/repos/piPyGreenhouse && . env/bin/activate && python3 __main__.py 

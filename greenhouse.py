@@ -2,6 +2,7 @@
 import logging
 import time
 
+from alive_progress import alive_bar
 from datetime import datetime
 from azure_services import AzureCosmosDbClient
 from models import Greenhouse
@@ -24,15 +25,13 @@ class GreenhouseService:
 
 
     def start_measuring(self, interval_in_minutes: int = 10):
-        while True: 
-            logging.info('saving current measures to db')
-            self.save_measurement()
-            logging.info('waiting for {0} minutes until next measure'.format(interval_in_minutes))
-            time.sleep(interval_in_minutes * 60)
+        logging.info('saving current measures to db')
+        self._save_measurement()
+        logging.info('waiting for {0} minutes until next measure'.format(interval_in_minutes))
             
             
-    def save_measurement(self):
-        metrics = self.measure()  
+    def _save_measurement(self):
+        metrics = self._measure()  
         try:
             result = self.db_client.insert_measure(measure=metrics)        
         except exceptions.CosmosHttpResponseError as e:
@@ -40,7 +39,7 @@ class GreenhouseService:
         logging.info('measures saved in database with id: {0}'.format(result["id"]))
       
                            
-    def measure(self) -> Greenhouse:
+    def _measure(self) -> Greenhouse:
         logging.info("Measuring...")
 
         soil_moisture = self.soil_moisture_sensor.get_soil_moisture()

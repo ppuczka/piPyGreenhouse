@@ -66,6 +66,9 @@ venv.bak/
 # Rope project settings
 .ropeproject
 
+# Greenhouse logs 
+logs/
+
 # mkdocs documentation
 /site
 
@@ -79,4 +82,3 @@ dmypy.json
 
 # VSCode configuration
 .vscode/
-

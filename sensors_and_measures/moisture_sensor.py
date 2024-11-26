@@ -18,6 +18,6 @@ class SoilMoistureSensor:
      
 
     def get_soil_moisture(self):
-        print('Detecting moisture...')
+        logging.info("Detecting moisture...")
         return SoilMoisture(self.moisture)
     

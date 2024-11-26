@@ -21,7 +21,7 @@ class Greenhouse:
             "temperature": self.air_temperature.temperature,
             "temperature_level": self.air_temperature.temperature_level.value,
             "humidity": self.air_humidity.humidity,
-            "humidity_lever": self.air_humidity.humidity_level.value,
+            "humidity_level": self.air_humidity.humidity_level.value,
             "soil_moisture": self.soil_moisture.sensor_value,
             "soil_moisture_level": self.soil_moisture.moisture_level.value,
             "date_time": self.datetime
