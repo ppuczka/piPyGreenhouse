@@ -3,11 +3,11 @@ Description=Greenhouse service
 After=multi-user.target
 
 [Service]
-WorkingDirectory=/home/pi/repos/piPyGreenhouse
-ExecStart=/home/pi/repos/piPyGreenhouse/__main__.py
+WorkingDirectory=<home>
+ExecStart=<path/to/__main__.py>
 Restart=always
-Environment=PYTHONPATH=/home/pi/repos/piPyGreenhouse/env/lib/python3.11/site-packages
-User=pi
+Environment=PYTHONPATH=<path/to/packages>
+User=<user>
 [Install]
 WantedBy=multi-user.target
 
