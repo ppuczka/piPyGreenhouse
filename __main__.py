@@ -1,6 +1,5 @@
 #!/usr/bin/python
 
-import daemon
 from dependency_injector.wiring import Provide, inject
 from dotenv import load_dotenv
 
@@ -11,7 +10,7 @@ load_dotenv('.env')
 
 @inject
 def main(greenhouse_service: GreenhouseService = Provide[Container.greenhouse_service]) -> None:
-    greenhouse_service.start_measuring(interval_in_minutes=5)
+    greenhouse_service.start_measuring()
           
           
 if __name__ == '__main__':

@@ -24,7 +24,7 @@ class GreenhouseService:
         self.db_client = db_client
 
 
-    def start_measuring(self, interval_in_minutes: int = 10):
+    def start_measuring(self, interval_in_minutes: int = 15):
         logging.info('saving current measures to db')
         self._save_measurement()
         logging.info('waiting for {0} minutes until next measure'.format(interval_in_minutes))
