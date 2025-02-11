@@ -1,4 +1,5 @@
 import logging.config
+import os
 import sys
 
 from dependency_injector import containers, providers
@@ -10,7 +11,7 @@ from sensors_and_measures.tempearature_and_humidity_sensor import TemperatureHum
 
 
 class Container(containers.DeclarativeContainer):
-    
+ 
     config = providers.Configuration(ini_files=["config.ini"])
     
     logging = providers.Resource(
