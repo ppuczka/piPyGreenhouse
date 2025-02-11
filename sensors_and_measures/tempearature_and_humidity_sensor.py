@@ -3,6 +3,8 @@ import logging
 import time
 import seeed_dht
 
+from sensors_and_measures.sensor_interface import SensorInterface
+
 __all__ = ["TemperatureHumiditySensor"]
 
 
@@ -48,18 +50,19 @@ class AirTemperature:
             self.temperature_level = AirTemperatureLevel.HIGH
                
 
-class TemperatureHumiditySensor:
+class TemperatureHumiditySensor(SensorInterface):
     def __init__(self, dht_sensor_type: str, pin: str):
         self.sensor = seeed_dht.DHT(dht_sensor_type, pin)
     
+    def get_measurements(self):
+        return self._get_humidity(), self._get_temperature()
     
-    def get_humidity(self):
+    def _get_humidity(self):
         logging.info("Detecting humidity...")
         humidity, _ = self.sensor.read()
         return AirHumidity(humidity)
     
-    
-    def get_temperature(self):
+    def _get_temperature(self):
         logging.info("Detecting temperature...")
         _, temperature = self.sensor.read()
         return AirTemperature(temperature)

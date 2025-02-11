@@ -41,10 +41,8 @@ class GreenhouseService:
                            
     def _measure(self) -> Greenhouse:
         logging.info("Measuring...")
-
-        soil_moisture = self.soil_moisture_sensor.get_soil_moisture()
-        air_temp = self.temp_humid_sensor.get_temperature()
-        air_humid = self.temp_humid_sensor.get_humidity()
+        soil_moisture = self.soil_moisture_sensor.get_measurements()
+        air_humid, air_temp = self.temp_humid_sensor.get_measurements()
         greenhouse_metrics = Greenhouse(
             soil_moisture=soil_moisture,
             air_temperature=air_temp,

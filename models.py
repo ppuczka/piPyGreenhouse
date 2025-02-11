@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from sensors_and_measures.soil_moisture import SoilMoisture
+from sensors_and_measures.moisture_sensor import SoilMoisture
 from sensors_and_measures.tempearature_and_humidity_sensor import AirHumidity, AirTemperature
 
 
