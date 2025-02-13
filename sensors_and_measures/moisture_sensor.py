@@ -16,19 +16,19 @@ class SoilMoistureLevel(Enum):
         return self.value
     
 class SoilMoisture:
-    def __init__(self, sensor_value: int):
-        self.sensor_value = sensor_value / 40
+    def __init__(self, soil_moisture: int):
+        self.soil_moisture = soil_moisture / 40
 
-        if 0 <= sensor_value and sensor_value < 30:
+        if 0 <= soil_moisture and soil_moisture < 30:
             self.moisture_level = SoilMoistureLevel.DRY
-        elif 31 <= sensor_value and sensor_value < 50:
+        elif 31 <= soil_moisture and soil_moisture < 50:
             self.moisture_level= SoilMoistureLevel.MOIST
         else:
             self.moisture_level = SoilMoistureLevel.WET
     
     @property
     def getSoilMoisture(self):
-        logging.info(f"Current moisture: ")
+        logging.info(f"Current soil moisture: {self.soil_moisture} ")
         
 class SoilMoistureSensor(SensorInterface):
     def __init__(self, pin: int):

@@ -1,0 +1,1 @@
+To fix issues with "Check whether I2C enabled and Grove Base Hat RPi or Grove Base Hat RPi Zero inserted" change address to 0x08 in .venv/lib/python3.11/site-packages/grove/adc.py line 50. https://forum.seeedstudio.com/t/airquality-sensor-on-grove-pi-at-facing-check-whether-i2c-enabled-and-grove-base-hat-rpi-or-grove-base-hat-rpi-zero-inserted/259371/3

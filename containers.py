@@ -6,6 +6,7 @@ from dependency_injector import containers, providers
 
 from azure_services import AzureCosmosDbClient
 from greenhouse import GreenhouseService
+from sensors_and_measures.light_sensor import LightIntensitySensor
 from sensors_and_measures.moisture_sensor import SoilMoistureSensor
 from sensors_and_measures.tempearature_and_humidity_sensor import TemperatureHumiditySensor
 
@@ -37,9 +38,15 @@ class Container(containers.DeclarativeContainer):
         config.sensors.temperature_humidity_sensor_pin.as_int()
     )
     
+    light_intensity_sensor = providers.Singleton(
+        LightIntensitySensor,
+        config.sensors.light_intensity_sensor_pin.as_int()
+    )
+    
     greenhouse_service = providers.Singleton(
         GreenhouseService,
         soil_moisture_sensor,
         temp_and_humidity_sensor,
+        light_intensity_sensor,
         database_client
     )
