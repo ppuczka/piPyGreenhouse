@@ -28,7 +28,7 @@ class GreenhouseService:
         logging.info('saving current measures to db')
         self._save_measurement()
         logging.info('waiting for {0} minutes until next measure'.format(interval_in_minutes))
-            
+        time.sleep(interval_in_minutes * 60)
             
     def _save_measurement(self):
         metrics = self._measure()  
@@ -37,8 +37,7 @@ class GreenhouseService:
         except exceptions.CosmosHttpResponseError as e:
             logging.error('save_measurement has caught an error. {0}'.format(e.message))
         logging.info('measures saved in database with id: {0}'.format(result["id"]))
-      
-                           
+                    
     def _measure(self) -> Greenhouse:
         logging.info("Measuring...")
         soil_moisture = self.soil_moisture_sensor.get_measurements()

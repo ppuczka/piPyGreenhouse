@@ -15,8 +15,6 @@ def main(greenhouse_service: GreenhouseService = Provide[Container.greenhouse_se
           
           
 if __name__ == '__main__':
-    print("Sffffdsfsdfsdfsdfdsf")
-    print(os.getcwd())
     container = Container()
     container.init_resources()
     container.wire(modules=[__name__])
