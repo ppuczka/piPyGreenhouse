@@ -26,7 +26,6 @@ class GreenhouseService:
         self.light_intensity_sensor = light_intensity_sensor
         self.db_client = db_client
 
-
     def start_measuring(self, interval_in_minutes: int = 15):
         logging.info('saving current measures to db')
         self._save_measurement()
