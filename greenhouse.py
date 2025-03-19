@@ -7,6 +7,7 @@ from datetime import datetime
 from azure_services import AzureCosmosDbClient
 from models import Greenhouse
 import azure.cosmos.exceptions as exceptions
+from sensors_and_measures.lcd_display import LcdDisplay
 from sensors_and_measures.light_sensor import LightIntensitySensor
 from sensors_and_measures.moisture_sensor import SoilMoistureSensor
 from sensors_and_measures.tempearature_and_humidity_sensor import TemperatureHumiditySensor
@@ -18,14 +19,15 @@ class GreenhouseService:
         soil_moisture_sensor: SoilMoistureSensor,
         temp_humid_sensor: TemperatureHumiditySensor,
         light_intensity_sensor: LightIntensitySensor,
+        lcd_display: LcdDisplay,
         db_client: AzureCosmosDbClient 
         ):
         
         self.soil_moisture_sensor = soil_moisture_sensor
         self.temp_humid_sensor = temp_humid_sensor
         self.light_intensity_sensor = light_intensity_sensor
+        self.lcd_display = lcd_display
         self.db_client = db_client
-
 
     def start_measuring(self, interval_in_minutes: int = 15):
         logging.info('saving current measures to db')
