@@ -11,7 +11,7 @@ load_dotenv('.env')
 
 @inject
 def main(greenhouse_service: GreenhouseService = Provide[Container.greenhouse_service]) -> None:
-    greenhouse_service.start_measuring()
+    greenhouse_service.run_in_parallel()
           
           
 if __name__ == '__main__':
