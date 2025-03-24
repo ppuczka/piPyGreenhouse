@@ -3,8 +3,6 @@ import logging
 import threading
 import time
 
-from alive_progress import alive_bar
-from datetime import datetime
 from azure_services import AzureCosmosDbClient
 from models import Greenhouse
 import azure.cosmos.exceptions as exceptions

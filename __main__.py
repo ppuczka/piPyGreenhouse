@@ -1,6 +1,5 @@
 #!/usr/bin/python
 
-import os
 from dependency_injector.wiring import Provide, inject
 from dotenv import load_dotenv
 
