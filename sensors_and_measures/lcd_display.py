@@ -1,6 +1,6 @@
 from datetime import datetime
 import logging
-from grove.lcd.sh1107g import *
+# from grove.display.sh1107g import *
 
 import sys
 
