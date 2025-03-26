@@ -1,20 +1,21 @@
-from datetime import datetime
+from datetime import datetime, time
+from grove.display.base import *
+from grove.i2c import Bus
+
 import logging
-# from grove.display.sh1107g import *
 
 import sys
 
 from models import Greenhouse
 
-class LcdDisplay(JHD1802):
+class LcdDisplay(Display):
     def __init__(self, address = 0x3E, display_interval_sec = 15):
-        self._bus = mraa.I2c(0)
+        self._bus = Bus()
         self._addr = address
         self._bus.address(self._addr)
         if self._bus.writeByte(0):
             logging.error(f"Check if the LCD {self.type} inserted, then try again")
             sys.exit(1)
-        self.jhd = upmjhd.Jhd1313m1(0, address, address)
         self.dispaly_interval_sec = display_interval_sec
         logging.info(f"LCD initialized {self.type} type")
         logging.info(f"LCD rows / cols {self.size}")
