@@ -1,5 +1,5 @@
 from datetime import datetime, time
-from grove.display.base import *
+from grove.display.jhd1802 import *
 from grove.i2c import Bus
 
 import logging
@@ -8,19 +8,17 @@ import sys
 
 from models import Greenhouse
 
-class LcdDisplay(Display):
+class LcdDisplay(JHD1802):
     def __init__(self, address = 0x3E, display_interval_sec = 15):
         self._bus = Bus()
         self._addr = address
-        self._bus.address(self._addr)
-        if self._bus.writeByte(0):
-            logging.error(f"Check if the LCD {self.type} inserted, then try again")
+        if self._bus.write_byte(self._addr, 0):
+            logging.error(f"Check if the LCD inserted, then try again")
             sys.exit(1)
         self.dispaly_interval_sec = display_interval_sec
         logging.info(f"LCD initialized {self.type} type")
-        logging.info(f"LCD rows / cols {self.size}")
         logging.info(f"Display interval: {self.dispaly_interval_sec}s")
-   
+        
     @property
     def name(self):
         return "Greenhouse"
@@ -28,6 +26,10 @@ class LcdDisplay(Display):
     def type(self):
         return "JHD1802"
     
+    def status(self):
+        super().clear()
+        super().write("Welcome")
+        
     def display_greenhouse_info(self, metrics: Greenhouse, uptime: str):
         self.clear()
         self.write(f"Temp: {metrics.air_temperature}C")

@@ -29,7 +29,7 @@ class GreenhouseService:
         self.db_client = db_client
         self.start_time = time.time()
         
-        self.greehnouse_metrics = None
+        self.greenhouse_metrics  = None
         self.lock = threading.Lock()
 
     def run_in_parallel(self, interval_in_minutes: int = 15):
@@ -51,7 +51,10 @@ class GreenhouseService:
     
     def _display_measures(self):
         logging.info("Runing lcd measurement display...")
+        self.lcd_display.status()
+        logging.info("Status")
         while True: 
+    
             uptime = self._get_uptime()
             with self.lock:  
                 if self.greenhouse_metrics is not None:
