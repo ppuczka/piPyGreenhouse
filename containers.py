@@ -14,11 +14,12 @@ from sensors_and_measures.tempearature_and_humidity_sensor import TemperatureHum
 
 class Container(containers.DeclarativeContainer):
  
-    config = providers.Configuration(ini_files=["config.ini"])
+    config_file = os.path.join(os.path.dirname(__file__), "config.ini")
+    config = providers.Configuration(ini_files=[config_file])
     
     logging = providers.Resource(
             logging.config.fileConfig,
-            fname="logging.ini",
+            fname=os.path.join(os.path.dirname(__file__), "logging.ini"),
     )
     
     database_client = providers.Singleton(

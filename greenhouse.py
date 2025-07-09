@@ -36,10 +36,10 @@ class GreenhouseService:
         measure_thread = threading.Thread(target=self._start_measuring_loop, args=(interval_in_minutes,), daemon=True)
         display_thread = threading.Thread(target=self._display_measures, daemon=True)
 
-        measure_thread.start()
+        # measure_thread.start()
         display_thread.start()
 
-        measure_thread.join()
+        # measure_thread.join()
         display_thread.join()
 
     def _start_measuring_loop(self, interval_in_minutes: int = 15):
@@ -54,7 +54,6 @@ class GreenhouseService:
         self.lcd_display.status()
         logging.info("Status")
         while True: 
-    
             uptime = self._get_uptime()
             with self.lock:  
                 if self.greenhouse_metrics is not None:
