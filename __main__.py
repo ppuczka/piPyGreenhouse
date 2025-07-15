@@ -1,12 +1,13 @@
 #!/usr/bin/python
 
+import os
 from dependency_injector.wiring import Provide, inject
 from dotenv import load_dotenv
 
 from greenhouse import GreenhouseService
 from containers import Container
 
-load_dotenv('.env')
+load_dotenv(os.path.join(os.path.dirname(__file__),'.env'))
 
 @inject
 def main(greenhouse_service: GreenhouseService = Provide[Container.greenhouse_service]) -> None:

@@ -1,4 +1,3 @@
-
 import logging
 import threading
 import time
@@ -32,27 +31,40 @@ class GreenhouseService:
         self.greenhouse_metrics  = None
         self.lock = threading.Lock()
 
-    def run_in_parallel(self, interval_in_minutes: int = 15):
-        measure_thread = threading.Thread(target=self._start_measuring_loop, args=(interval_in_minutes,), daemon=True)
+    def run_in_parallel(self, measure_interval_sec: int = 60, save_interval_min: int = 15):
+        measure_thread = threading.Thread(
+            target=self._start_measuring_loop, 
+            args=(measure_interval_sec, save_interval_min), 
+            daemon=True
+        )
         display_thread = threading.Thread(target=self._display_measures, daemon=True)
 
-        # measure_thread.start()
+        measure_thread.start()
         display_thread.start()
 
-        # measure_thread.join()
+        measure_thread.join()
         display_thread.join()
 
-    def _start_measuring_loop(self, interval_in_minutes: int = 15):
-       while True:
+    def _start_measuring_loop(self, measure_interval_sec: int = 60, save_interval_min: int = 15):
+        last_save_time = time.time()
+        while True:
             logging.info("Performing measurement...")
             with self.lock:
-                self._save_measurement()
-            time.sleep(interval_in_minutes * 60)
-    
+                self._measure()
+                # Save only if 15 minutes have passed
+                time_since_last_save = time.time() - last_save_time
+                if time_since_last_save >= save_interval_min * 60:
+                    self._save_measurement()
+                    last_save_time = time.time()
+                else:
+                    minutes, seconds = divmod(int(time_since_last_save), 60)
+                    logging.info(f"Skipping save, not enough time has passed since last save: {minutes:02}:{seconds:02} (MM:SS)")
+            time.sleep(measure_interval_sec)
+
     def _display_measures(self):
-        logging.info("Runing lcd measurement display...")
         self.lcd_display.status()
-        logging.info("Status")
+        logging.info("Runing lcd measurement display...")
+        logging.info(f"Begining displaying greenhouse metrics on LCD loop")
         while True: 
             uptime = self._get_uptime()
             with self.lock:  
@@ -61,11 +73,11 @@ class GreenhouseService:
             time.sleep(30)
         
     def _save_measurement(self):
-        self._measure()  
         try:
             result = self.db_client.insert_measure(measure=self.greenhouse_metrics)        
         except exceptions.CosmosHttpResponseError as e:
             logging.error('save_measurement has caught an error. {0}'.format(e.message))
+            return
         logging.info('measures saved in database with id: {0}'.format(result["id"]))
                     
     def _measure(self):
@@ -78,7 +90,7 @@ class GreenhouseService:
             air_temperature=air_temp,
             air_humidity=air_humid,
             light_intensity=light_intensity
-            )
+        )
         logging.info(self.greenhouse_metrics.to_cosmos_db_item)
        
        
