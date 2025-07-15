@@ -1,6 +1,6 @@
-from datetime import datetime, time
-from grove.display.jhd1802 import *
+from datetime import time
 from grove.i2c import Bus
+from grove.display.jhd1802 import *
 import time
 import logging
 
