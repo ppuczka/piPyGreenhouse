@@ -4,7 +4,6 @@ from sensors_and_measures.light_sensor import LightIntensity
 from sensors_and_measures.moisture_sensor import SoilMoisture
 from sensors_and_measures.tempearature_and_humidity_sensor import AirHumidity, AirTemperature
 
-
 class Greenhouse:
     def __init__(self, soil_moisture: SoilMoisture, air_temperature: AirTemperature, air_humidity: AirHumidity, light_intensity: LightIntensity):
         self.datetime = datetime.now().strftime("%Y-%m-%d %H:%M:%S")

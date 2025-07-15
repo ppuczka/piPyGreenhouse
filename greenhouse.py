@@ -1,12 +1,11 @@
-
 import logging
+import threading
 import time
 
-from alive_progress import alive_bar
-from datetime import datetime
 from azure_services import AzureCosmosDbClient
 from models import Greenhouse
 import azure.cosmos.exceptions as exceptions
+from sensors_and_measures.lcd_display import LcdDisplay
 from sensors_and_measures.light_sensor import LightIntensitySensor
 from sensors_and_measures.moisture_sensor import SoilMoistureSensor
 from sensors_and_measures.tempearature_and_humidity_sensor import TemperatureHumiditySensor
@@ -18,39 +17,87 @@ class GreenhouseService:
         soil_moisture_sensor: SoilMoistureSensor,
         temp_humid_sensor: TemperatureHumiditySensor,
         light_intensity_sensor: LightIntensitySensor,
-        db_client: AzureCosmosDbClient 
+        lcd_display: LcdDisplay,
+        db_client: AzureCosmosDbClient,
         ):
         
         self.soil_moisture_sensor = soil_moisture_sensor
         self.temp_humid_sensor = temp_humid_sensor
         self.light_intensity_sensor = light_intensity_sensor
+        self.lcd_display = lcd_display
         self.db_client = db_client
+        self.start_time = time.time()
+        
+        self.greenhouse_metrics  = None
+        self.lock = threading.Lock()
 
-    def start_measuring(self, interval_in_minutes: int = 15):
-        logging.info('saving current measures to db')
-        self._save_measurement()
-        logging.info('waiting for {0} minutes until next measure'.format(interval_in_minutes))
-        time.sleep(interval_in_minutes * 60)
-            
+    def run_in_parallel(self, measure_interval_sec: int = 60, save_interval_min: int = 15):
+        measure_thread = threading.Thread(
+            target=self._start_measuring_loop, 
+            args=(measure_interval_sec, save_interval_min), 
+            daemon=True
+        )
+        display_thread = threading.Thread(target=self._display_measures, daemon=True)
+
+        measure_thread.start()
+        display_thread.start()
+
+        measure_thread.join()
+        display_thread.join()
+
+    def _start_measuring_loop(self, measure_interval_sec: int = 60, save_interval_min: int = 15):
+        last_save_time = time.time()
+        while True:
+            logging.info("Performing measurement...")
+            with self.lock:
+                self._measure()
+                # Save only if 15 minutes have passed
+                time_since_last_save = time.time() - last_save_time
+                if time_since_last_save >= save_interval_min * 60:
+                    self._save_measurement()
+                    last_save_time = time.time()
+                else:
+                    minutes, seconds = divmod(int(time_since_last_save), 60)
+                    logging.info(f"Skipping save, not enough time has passed since last save: {minutes:02}:{seconds:02} (MM:SS)")
+            time.sleep(measure_interval_sec)
+
+    def _display_measures(self):
+        self.lcd_display.status()
+        logging.info("Runing lcd measurement display...")
+        logging.info(f"Begining displaying greenhouse metrics on LCD loop")
+        while True: 
+            uptime = self._get_uptime()
+            with self.lock:  
+                if self.greenhouse_metrics is not None:
+                    self.lcd_display.display_greenhouse_info(self.greenhouse_metrics, uptime)
+            time.sleep(30)
+        
     def _save_measurement(self):
-        metrics = self._measure()  
         try:
-            result = self.db_client.insert_measure(measure=metrics)        
+            result = self.db_client.insert_measure(measure=self.greenhouse_metrics)        
         except exceptions.CosmosHttpResponseError as e:
             logging.error('save_measurement has caught an error. {0}'.format(e.message))
+            return
         logging.info('measures saved in database with id: {0}'.format(result["id"]))
                     
-    def _measure(self) -> Greenhouse:
+    def _measure(self):
         logging.info("Measuring...")
         soil_moisture = self.soil_moisture_sensor.get_measurements()
         air_humid, air_temp = self.temp_humid_sensor.get_measurements()
         light_intensity = self.light_intensity_sensor.get_measurements()
-        greenhouse_metrics = Greenhouse(
+        self.greenhouse_metrics = Greenhouse(
             soil_moisture=soil_moisture,
             air_temperature=air_temp,
             air_humidity=air_humid,
             light_intensity=light_intensity
-            )
-        logging.info(greenhouse_metrics.to_cosmos_db_item)
-        return greenhouse_metrics
-    
+        )
+        logging.info(self.greenhouse_metrics.to_cosmos_db_item)
+       
+       
+    def _get_uptime(self) -> str:
+        current_time = time.time()
+        uptime_seconds = current_time - self.start_time
+
+        hours, remainder = divmod(uptime_seconds, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        return f"{int(hours):02}:{int(minutes):02}:{int(seconds):02}"
