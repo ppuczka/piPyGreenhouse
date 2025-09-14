@@ -74,9 +74,32 @@ class GreenhouseService:
         
     def _save_measurement(self):
         try:
-            result = self.db_client.insert_measure(measure=self.greenhouse_metrics)        
+            # Run the insert in a separate thread with a timeout to avoid hanging
+            result_container = {}
+
+            def db_insert():
+                try:
+                    result_container["result"] = self.db_client.insert_measure(measure=self.greenhouse_metrics)
+                except Exception as e:
+                    result_container["error"] = e
+
+            insert_thread = threading.Thread(target=db_insert)
+            insert_thread.start()
+            insert_thread.join(timeout=10)  # 10 seconds timeout
+
+            if insert_thread.is_alive():
+                logging.error('save_measurement timed out after 10 seconds.')
+                return
+
+            if "error" in result_container:
+                raise result_container["error"]
+
+            result = result_container["result"]
         except exceptions.CosmosHttpResponseError as e:
-            logging.error('save_measurement has caught an error. {0}'.format(e.message))
+            logging.error('save_measurement has caught an error. {0}'.format(getattr(e, "message", str(e))))
+            return
+        except Exception as e:
+            logging.error('save_measurement encountered an unexpected error: {0}'.format(str(e)))
             return
         logging.info('measures saved in database with id: {0}'.format(result["id"]))
                     
@@ -91,8 +114,8 @@ class GreenhouseService:
             air_humidity=air_humid,
             light_intensity=light_intensity
         )
-        logging.info(self.greenhouse_metrics.to_cosmos_db_item)
-       
+        logging.info(f"Current metrics read: {self.greenhouse_metrics.to_cosmos_db_item()}")
+
        
     def _get_uptime(self) -> str:
         current_time = time.time()
