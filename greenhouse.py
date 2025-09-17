@@ -1,10 +1,11 @@
+import asyncio
 import logging
 import threading
 import time
 
-from azure_services import AzureCosmosDbClient
+from azure_services import AzureCosmosDbClient, AzureIotHubClient, AzureIotHubClientException, AzureIotHubMessage, AzureIotHubMessageType
 from models import Greenhouse
-import azure.cosmos.exceptions as exceptions
+import azure.cosmos as exceptions
 from sensors_and_measures.lcd_display import LcdDisplay
 from sensors_and_measures.light_sensor import LightIntensitySensor
 from sensors_and_measures.moisture_sensor import SoilMoistureSensor
@@ -19,6 +20,7 @@ class GreenhouseService:
         light_intensity_sensor: LightIntensitySensor,
         lcd_display: LcdDisplay,
         db_client: AzureCosmosDbClient,
+        iot_hub_client: AzureIotHubClient,
         ):
         
         self.soil_moisture_sensor = soil_moisture_sensor
@@ -26,12 +28,23 @@ class GreenhouseService:
         self.light_intensity_sensor = light_intensity_sensor
         self.lcd_display = lcd_display
         self.db_client = db_client
+        self.iot_hub_client = iot_hub_client
         self.start_time = time.time()
         
         self.greenhouse_metrics  = None
         self.lock = threading.Lock()
 
-    def run_in_parallel(self, measure_interval_sec: int = 60, save_interval_min: int = 15):
+
+    async def run_in_parallel(self, measure_interval_sec: int = 60, save_interval_min: int = 15):
+        try:
+            self.iot_hub_client.connect()
+        except AzureIotHubClientException as iotEx:
+            logging.error(f"Failed to connect to IoT Hub: {iotEx}")
+            return
+        except Exception as ex:
+            logging.error(f"Unexpected error while connecting to IoT Hub: {ex}")
+        
+        
         measure_thread = threading.Thread(
             target=self._start_measuring_loop, 
             args=(measure_interval_sec, save_interval_min), 
@@ -40,10 +53,11 @@ class GreenhouseService:
         display_thread = threading.Thread(target=self._display_measures, daemon=True)
 
         measure_thread.start()
-        display_thread.start()
+        # display_thread.start()
 
         measure_thread.join()
-        display_thread.join()
+        # display_thread.join()
+
 
     def _start_measuring_loop(self, measure_interval_sec: int = 60, save_interval_min: int = 15):
         last_save_time = time.time()
@@ -54,12 +68,15 @@ class GreenhouseService:
                 # Save only if 15 minutes have passed
                 time_since_last_save = time.time() - last_save_time
                 if time_since_last_save >= save_interval_min * 60:
-                    self._save_measurement()
+                # if True:
+                    self._send_metrics_telemetry_to_iot_hub()
+                    # self._save_measurement()
                     last_save_time = time.time()
                 else:
                     minutes, seconds = divmod(int(time_since_last_save), 60)
                     logging.info(f"Skipping save, not enough time has passed since last save: {minutes:02}:{seconds:02} (MM:SS)")
             time.sleep(measure_interval_sec)
+
 
     def _display_measures(self):
         self.lcd_display.status()
@@ -71,14 +88,16 @@ class GreenhouseService:
                 if self.greenhouse_metrics is not None:
                     self.lcd_display.display_greenhouse_info(self.greenhouse_metrics, uptime)
             time.sleep(30)
+       
         
-    def _save_measurement(self):
+    def _save_measurement_to_cosmos_db(self):
         try:
             result = self.db_client.insert_measure(measure=self.greenhouse_metrics)        
         except exceptions.CosmosHttpResponseError as e:
             logging.error('save_measurement has caught an error. {0}'.format(e.message))
             return
         logging.info('measures saved in database with id: {0}'.format(result["id"]))
+       
                     
     def _measure(self):
         logging.info("Measuring...")
@@ -91,7 +110,19 @@ class GreenhouseService:
             air_humidity=air_humid,
             light_intensity=light_intensity
         )
-        logging.info(self.greenhouse_metrics.to_cosmos_db_item)
+        logging.info(f"Current metrics read: {self.greenhouse_metrics.to_cosmos_db_item()}")
+       
+       
+    def _send_metrics_telemetry_to_iot_hub(self):
+        if self.greenhouse_metrics is not None:
+            message = AzureIotHubMessage(
+                message_type=AzureIotHubMessageType.METRICS,
+                content=self.greenhouse_metrics
+            )
+            self.iot_hub_client.send_telemetry(message)
+            logging.info(f"Telemetry sent: {self.greenhouse_metrics.to_cosmos_db_item()}")
+        else:
+            logging.warning("No greenhouse metrics available to send as telemetry.")
        
        
     def _get_uptime(self) -> str:
