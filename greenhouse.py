@@ -6,6 +6,7 @@ import time
 from azure_services import AzureCosmosDbClient, AzureIotHubClient, AzureIotHubClientException, AzureIotHubMessage, AzureIotHubMessageType
 from models import Greenhouse
 import azure.cosmos as exceptions
+from controllers.pump_controller import WaterPumpController
 from sensors_and_measures.lcd_display import LcdDisplay
 from sensors_and_measures.light_sensor import LightIntensitySensor
 from sensors_and_measures.moisture_sensor import SoilMoistureSensor
@@ -19,6 +20,7 @@ class GreenhouseService:
         temp_humid_sensor: TemperatureHumiditySensor,
         light_intensity_sensor: LightIntensitySensor,
         lcd_display: LcdDisplay,
+        water_pump_controller: WaterPumpController,
         db_client: AzureCosmosDbClient,
         iot_hub_client: AzureIotHubClient,
         ):
@@ -28,6 +30,7 @@ class GreenhouseService:
         self.light_intensity_sensor = light_intensity_sensor
         self.lcd_display = lcd_display
         self.db_client = db_client
+        self.water_pump_controller = water_pump_controller
         self.iot_hub_client = iot_hub_client
         self.start_time = time.time()
         
@@ -43,19 +46,21 @@ class GreenhouseService:
             return
         except Exception as ex:
             logging.error(f"Unexpected error while connecting to IoT Hub: {ex}")
-        
-        
+
         measure_thread = threading.Thread(
-            target=self._start_measuring_loop, 
-            args=(measure_interval_sec, save_interval_min), 
+            target=self._start_measuring_loop,
+            args=(measure_interval_sec, save_interval_min),
             daemon=True
         )
+        
         display_thread = threading.Thread(target=self._display_measures, daemon=True)
-
+        
+        self.iot_hub_client.start_receiving_messages(self._handle_incoming_message)
+        
         measure_thread.start()
-        # display_thread.start()
-
         measure_thread.join()
+
+        # display_thread.start()
         # display_thread.join()
 
 
@@ -132,3 +137,37 @@ class GreenhouseService:
         hours, remainder = divmod(uptime_seconds, 3600)
         minutes, seconds = divmod(remainder, 60)
         return f"{int(hours):02}:{int(minutes):02}:{int(seconds):02}"
+
+
+    def _handle_incoming_message(self, message):
+            if message is None or message.data == "":
+                logging.info("Received empty message from IoT Hub.")
+                return
+            
+            data = message.data.decode() if hasattr(message.data, 'decode') else str(message.data)
+            if data == ControlSignal.PUMP:
+                logging.info("Received pump control signal from IoT Hub.")
+                
+                if message.custom_properties is None:
+                    logging.warning("No custom properties found in the message.")
+                    return
+                
+                if "turn on" in message.custom_properties.values():
+                    self.water_pump_controller.turn_on()
+                    return
+                
+                if "turn off" in message.custom_properties.values():
+                    self.water_pump_controller.turn_off()
+                    return
+                
+                logging.warning("Unknown pump control command received.")
+                return
+            
+            return    
+  
+        
+class ControlSignal:
+    PUMP = "pump controller"
+    # Add other control signals as needed
+
+    

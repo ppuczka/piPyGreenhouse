@@ -25,7 +25,7 @@ class LcdDisplay(JHD1802):
         self.clear()
         self.home()
         self.write("Initializing ...")
-        time.sleep(self.dispaly_interval_sec)
+        time.sleep(1)
         
     @property
     def name(self):

@@ -1,5 +1,6 @@
 import json
 import logging
+import threading
 import uuid
 
 from azure.identity import DefaultAzureCredential
@@ -84,5 +85,24 @@ class AzureIotHubClient:
         except Exception as e:
             logging.error(f"Failed to send telemetry: {e}")
 
+    
+    def start_receiving_messages(self, message_handler=None):
+        def receive_loop():
+            logging.info("Message receive loop started.")
+            while True:
+                try:
+                    message = self.client.receive_message()  # blocking call
+                    logging.info(f"Received message from IoT Hub: {message.data}")
+                    if message_handler:
+                        message_handler(message)
+                except Exception as e:
+                    logging.error(f"Error receiving message: {e}")
+                    break  # or continue, depending on your needs
+
+        logging.info("Starting message receive loop...")
+        thread = threading.Thread(target=receive_loop, daemon=True)
+        thread.start()
+        
+        
 class AzureIotHubClientException(Exception):
     pass
