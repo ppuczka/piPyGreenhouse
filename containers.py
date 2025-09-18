@@ -5,7 +5,7 @@ import sys
 from dependency_injector import containers, providers
 from dotenv import load_dotenv
 
-from azure_services import AzureCosmosDbClient, AzureIotHubClient
+from azure_services import AzureCosmosDbClient, AzureIotHubClient, AzureIotHubIncomingSignalHandler
 from greenhouse import GreenhouseService
 from controllers.pump_controller import WaterPumpController
 from sensors_and_measures.lcd_display import LcdDisplay
@@ -35,15 +35,31 @@ class Container(containers.DeclarativeContainer):
         config.database.container_name
     )
     
+    
+    water_pump_controller = providers.Singleton(
+        WaterPumpController,
+        config.controllers.water_pump_pin.as_int()
+    )
+    
+    
+    iot_hub_signal_handler = providers.Singleton(
+        AzureIotHubIncomingSignalHandler,
+        water_pump_controller
+    )
+    
+    
     iot_hub_client = providers.Singleton(
         AzureIotHubClient,
+        iot_hub_signal_handler,
         config.azure.iot.hub.connection.string
     )
+
 
     soil_moisture_sensor = providers.Singleton(
         SoilMoistureSensor,
         config.sensors.soil_moisture_sensor_pin.as_int(), 
         )
+    
     
     temp_and_humidity_sensor = providers.Singleton(
         TemperatureHumiditySensor,
@@ -51,27 +67,24 @@ class Container(containers.DeclarativeContainer):
         config.sensors.temperature_humidity_sensor_pin.as_int()
     )
     
+    
     light_intensity_sensor = providers.Singleton(
         LightIntensitySensor,
         config.sensors.light_intensity_sensor_pin.as_int()
     )
     
+    
     lcd_display = providers.Singleton(
         LcdDisplay 
     )
     
-    water_pump_controller = providers.Singleton(
-        WaterPumpController,
-        config.controllers.water_pump_pin.as_int()
-    )
-    
+
     greenhouse_service = providers.Singleton(
         GreenhouseService,
         soil_moisture_sensor,
         temp_and_humidity_sensor,
         light_intensity_sensor,
         lcd_display,
-        water_pump_controller,
         database_client,
         iot_hub_client
     )

@@ -3,7 +3,7 @@ import logging
 import threading
 import time
 
-from azure_services import AzureCosmosDbClient, AzureIotHubClient, AzureIotHubClientException, AzureIotHubMessage, AzureIotHubMessageType
+from azure_services import AzureCosmosDbClient, AzureIotHubClient, AzureIotHubClientException, AzureIotHubMessage, AzureIotHubSignalType
 from models import Greenhouse
 import azure.cosmos as exceptions
 from controllers.pump_controller import WaterPumpController
@@ -20,7 +20,6 @@ class GreenhouseService:
         temp_humid_sensor: TemperatureHumiditySensor,
         light_intensity_sensor: LightIntensitySensor,
         lcd_display: LcdDisplay,
-        water_pump_controller: WaterPumpController,
         db_client: AzureCosmosDbClient,
         iot_hub_client: AzureIotHubClient,
         ):
@@ -30,7 +29,6 @@ class GreenhouseService:
         self.light_intensity_sensor = light_intensity_sensor
         self.lcd_display = lcd_display
         self.db_client = db_client
-        self.water_pump_controller = water_pump_controller
         self.iot_hub_client = iot_hub_client
         self.start_time = time.time()
         
@@ -55,7 +53,7 @@ class GreenhouseService:
         
         display_thread = threading.Thread(target=self._display_measures, daemon=True)
         
-        self.iot_hub_client.start_receiving_messages(self._handle_incoming_message)
+        self.iot_hub_client.start_receiving_messages()
         
         measure_thread.start()
         measure_thread.join()
@@ -121,7 +119,7 @@ class GreenhouseService:
     def _send_metrics_telemetry_to_iot_hub(self):
         if self.greenhouse_metrics is not None:
             message = AzureIotHubMessage(
-                message_type=AzureIotHubMessageType.METRICS,
+                message_type=AzureIotHubSignalType.METRICS,
                 content=self.greenhouse_metrics
             )
             self.iot_hub_client.send_telemetry(message)
@@ -138,36 +136,3 @@ class GreenhouseService:
         minutes, seconds = divmod(remainder, 60)
         return f"{int(hours):02}:{int(minutes):02}:{int(seconds):02}"
 
-
-    def _handle_incoming_message(self, message):
-            if message is None or message.data == "":
-                logging.info("Received empty message from IoT Hub.")
-                return
-            
-            data = message.data.decode() if hasattr(message.data, 'decode') else str(message.data)
-            if data == ControlSignal.PUMP:
-                logging.info("Received pump control signal from IoT Hub.")
-                
-                if message.custom_properties is None:
-                    logging.warning("No custom properties found in the message.")
-                    return
-                
-                if "turn on" in message.custom_properties.values():
-                    self.water_pump_controller.turn_on()
-                    return
-                
-                if "turn off" in message.custom_properties.values():
-                    self.water_pump_controller.turn_off()
-                    return
-                
-                logging.warning("Unknown pump control command received.")
-                return
-            
-            return    
-  
-        
-class ControlSignal:
-    PUMP = "pump controller"
-    # Add other control signals as needed
-
-    
