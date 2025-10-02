@@ -9,7 +9,7 @@ from azure.iot.device import IoTHubDeviceClient, Message
 from azure.cosmos import CosmosClient
 
 from models import Greenhouse
-from controllers.pump_controller import WaterPumpController
+from controllers.greenhouse_controllers import WaterPumpController
 
 class AzureIotHubSignalType:
     METRICS = "metrics"
@@ -101,7 +101,7 @@ class AzureIotHubIncomingSignalHandler:
         # Lowercase all custom property keys for case-insensitive matching
         if ControlSignal.PUMP in properties.keys():
             logging.info(f"Pump control signal received: {properties[ControlSignal.PUMP]}")
-            self.water_pump_controller.control_pump(properties[ControlSignal.PUMP])
+            self.water_pump_controller.control(properties[ControlSignal.PUMP])
             logging.info(f"Pump control signal executed: {properties[ControlSignal.PUMP]}")
             return
         

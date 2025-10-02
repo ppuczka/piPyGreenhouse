@@ -6,7 +6,7 @@ import time
 from azure_services import AzureCosmosDbClient, AzureIotHubClient, AzureIotHubClientException, AzureIotHubMessage, AzureIotHubSignalType
 from models import Greenhouse
 import azure.cosmos as exceptions
-from controllers.pump_controller import WaterPumpController
+from controllers.greenhouse_controllers import WaterPumpController
 from sensors_and_measures.lcd_display import LcdDisplay
 from sensors_and_measures.light_sensor import LightIntensitySensor
 from sensors_and_measures.moisture_sensor import SoilMoistureSensor
@@ -119,7 +119,7 @@ class GreenhouseService:
     def _send_metrics_telemetry_to_iot_hub(self):
         if self.greenhouse_metrics is not None:
             message = AzureIotHubMessage(
-                message_type=AzureIotHubSignalType.METRICS,
+                message_type=AzureIotHubSignalType.ALERT,
                 content=self.greenhouse_metrics
             )
             self.iot_hub_client.send_telemetry(message)

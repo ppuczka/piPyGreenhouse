@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 
 from azure_services import AzureCosmosDbClient, AzureIotHubClient, AzureIotHubIncomingSignalHandler
 from greenhouse import GreenhouseService
-from controllers.pump_controller import WaterPumpController
+from controllers.greenhouse_controllers import WaterPumpController
 from sensors_and_measures.lcd_display import LcdDisplay
 from sensors_and_measures.light_sensor import LightIntensitySensor
 from sensors_and_measures.moisture_sensor import SoilMoistureSensor
@@ -38,7 +38,7 @@ class Container(containers.DeclarativeContainer):
     
     water_pump_controller = providers.Singleton(
         WaterPumpController,
-        config.controllers.water_pump_pin.as_int()
+        config.controllers.water_pump_controller_pin.as_int()
     )
     
     

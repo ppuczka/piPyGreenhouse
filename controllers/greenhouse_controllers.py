@@ -2,36 +2,55 @@ import logging
 import time
 import threading
 
+from grove.gpio import GPIO
+
 MAX_WATERING_DURATION_SEC = 60  # Maximum watering duration in seconds (5 minutes)
+MAX_ATOMIZING_DURATION_SEC = 600  # Maximum watering duration in seconds (5 minutes)
 
 
-class WaterPumpSignal:
+class GreenhouseControlSignal:
     TURN_ON = "turn_on"
     TURN_OFF = "turn_off"
 
 
-class WaterPumpController:
+class ControlInterface:
+    def control(self, signal: str):
+        pass
+
+
+class WaterAtomizerController:
+    pass
+
+
+class WaterPumpButton(GPIO):
+    pass
+    
+
+class WaterPumpController(GPIO, ControlInterface):  
+    def __init__(self, pump_gpio_pin: int = None):
+        if pump_gpio_pin is None:
+            raise ValueError("Pump GPIO pin must be provided")
         
-    def __init__(self, pump_gpio_pin):
-        self.pump_gpio_pin = pump_gpio_pin
         self._stop_signal = True
         self._pump_thread = None
+        super().__init__(pump_gpio_pin, GPIO.OUT)
+        self.write(0)  # Ensure pump is off initially
 
 
-    def control_pump(self, signal: str):
-        if signal.lower() == WaterPumpSignal.TURN_ON:
-            self._start_watering_thread()
-        elif signal.lower() == WaterPumpSignal.TURN_OFF:
+    def control(self, signal: str):
+        if signal.lower() == GreenhouseControlSignal.TURN_ON:
+            self._start_control_thread()
+        elif signal.lower() == GreenhouseControlSignal.TURN_OFF:
             self._turn_off()
         else:
             logging.warning(f"Unknown pump control signal: {signal}")
 
 
-    def _start_watering_thread(self):
+    def _start_control_thread(self):
         if self._pump_thread and self._pump_thread.is_alive():
             logging.info("Pump is already running.")
             return
-        
+
         self._stop_signal = False
         self._pump_thread = threading.Thread(target=self._turn_on, daemon=True)
         self._pump_thread.start()
@@ -39,12 +58,15 @@ class WaterPumpController:
 
     def _turn_on(self):
         start_time = time.time()
+        self.write(1)  # Turn on the pump
+        logging.info("Water pump turned ON")    
         while time.time() - start_time < MAX_WATERING_DURATION_SEC:
             logging.debug("Watering...")
             if self._stop_signal:
                 logging.info("Watering stopped by stop signal.")
                 break
-            time.sleep(1)  # Simulate pump running
+            time.sleep(5)
+        self.write(0) # Turn off the pump
         logging.info("Watering completed")
 
 

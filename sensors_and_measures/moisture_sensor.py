@@ -40,3 +40,5 @@ class SoilMoistureSensor(SensorInterface):
         value = self.adc.read_voltage(self.channel)
         return SoilMoisture(value)
     
+    def alert(self):
+        logging.info("Soil moisture alert!")
