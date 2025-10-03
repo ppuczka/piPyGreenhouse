@@ -18,10 +18,14 @@ class Container(containers.DeclarativeContainer):
     load_dotenv(os.path.join(os.path.dirname(__file__),'.env'))
 
     config_file = os.path.join(os.path.dirname(__file__), "config.ini")
+    app_defaults_file = os.path.join(os.path.dirname(__file__), "app_defaults.ini")
 
     config = providers.Configuration()
     config.from_ini(config_file)
     config.azure.iot.hub.connection.string.from_env("AZURE_IOT_HUB_CONNECTION_STRING", required=True)
+
+    greenhouse_config = providers.Configuration()
+    greenhouse_config.from_ini(app_defaults_file) 
        
     logging = providers.Resource(
             logging.config.fileConfig,
