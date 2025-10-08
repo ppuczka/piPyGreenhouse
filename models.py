@@ -51,6 +51,7 @@ class GreenhouseAppConfig:
     atomizing_duration_sec: int
 
     display_backlight_on: bool
+    display_interval_sec: int
 
     telemetry_send_sec: int
     metric_read_sec: int

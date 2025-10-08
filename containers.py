@@ -30,18 +30,19 @@ class Container(containers.DeclarativeContainer):
 
     greenhouse_app_config = providers.Singleton(
         GreenhouseAppConfig,
-        config.thresholds.temperature_lo.as_int(),
-        config.thresholds.temperature_high.as_int(),
-        config.thresholds.humidity_lo.as_int(),
-        config.thresholds.humidity_high.as_int(),
-        config.thresholds.soil_moisture_lo.as_int(),
-        config.thresholds.soil_moisture_high.as_int(),
-        config.watering.duration_sec.as_int(),
-        config.atomizing.duration_sec.as_int(),
-        config.display.backlight_on.as_bool(),
-        config.intervals.telemetry_send_sec.as_int(),
-        config.intervals.metric_read_sec.as_int(),
-        config.intervals.alerting_sec.as_int()
+        greenhouse_app_defaults.thresholds.temperature_lo.as_int(),
+        greenhouse_app_defaults.thresholds.temperature_high.as_int(),
+        greenhouse_app_defaults.thresholds.humidity_lo.as_int(),
+        greenhouse_app_defaults.thresholds.humidity_high.as_int(),
+        greenhouse_app_defaults.thresholds.soil_moisture_lo.as_int(),
+        greenhouse_app_defaults.thresholds.soil_moisture_high.as_int(),
+        greenhouse_app_defaults.actions.watering_duration_sec.as_int(),
+        greenhouse_app_defaults.actions.atomizing_duration_sec.as_int(),
+        greenhouse_app_defaults.display.backlight_on.as_(lambda x: x.lower() in ('true', '1', 'yes', 'on')),
+        greenhouse_app_defaults.display.interval_sec.as_int(),
+        greenhouse_app_defaults.intervals.telemetry_send_sec.as_int(),
+        greenhouse_app_defaults.intervals.metric_read_sec.as_int(),
+        greenhouse_app_defaults.intervals.alerting_sec.as_int()
     )
     
     
@@ -63,7 +64,7 @@ class Container(containers.DeclarativeContainer):
         WaterPumpController,
         config.controllers.water_pump_controller_pin.as_int(),
         greenhouse_app_config.provided.watering_duration_sec
-    )
+        )
     
     
     iot_hub_signal_handler = providers.Singleton(
@@ -82,8 +83,8 @@ class Container(containers.DeclarativeContainer):
     soil_moisture_sensor = providers.Singleton(
         SoilMoistureSensor,
         config.sensors.soil_moisture_sensor_pin.as_int(), 
-        greenhouse_app_config.provided.soil_moisture_threshold_high,
-        greenhouse_app_config.provided.soil_moisture_threshold_lo
+        greenhouse_app_config.provided.soil_moisture_high,
+        greenhouse_app_config.provided.soil_moisture_lo
     )
     
     
@@ -91,10 +92,10 @@ class Container(containers.DeclarativeContainer):
         TemperatureHumiditySensor,
         config.sensors.dht_sensor_type,
         config.sensors.temperature_humidity_sensor_pin.as_int(),
-        greenhouse_app_config.provided.temp_threshold_high,
-        greenhouse_app_config.provided.temp_threshold_lo,
-        greenhouse_app_config.provided.humid_threshold_high,
-        greenhouse_app_config.provided.humid_threshold_lo
+        greenhouse_app_config.provided.temperature_high,
+        greenhouse_app_config.provided.temperature_lo,
+        greenhouse_app_config.provided.humidity_high,
+        greenhouse_app_config.provided.humidity_lo
     )
     
     
@@ -107,7 +108,7 @@ class Container(containers.DeclarativeContainer):
     lcd_display = providers.Singleton(
         LcdDisplay,
         greenhouse_app_config.provided.display_interval_sec,
-        greenhouse_app_config.provided.backlight_on
+        greenhouse_app_config.provided.display_backlight_on
     )
     
 
@@ -118,5 +119,7 @@ class Container(containers.DeclarativeContainer):
         light_intensity_sensor,
         lcd_display,
         database_client,
-        iot_hub_client
+        iot_hub_client,
+        greenhouse_app_config.provided.metric_read_sec,
+        greenhouse_app_config.provided.telemetry_send_sec
     )

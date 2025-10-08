@@ -121,6 +121,7 @@ class AzureIotHubClient:
     
     
     def connect(self):
+        self.client.on_twin_desired_properties_patch_received = self.on_config_update
         try:
             self.client.connect()
             logging.info("Connected to Azure IoT Hub.")
@@ -170,4 +171,5 @@ class AzureIotHubClient:
 
     def on_config_update(self, new_config: dict):
         logging.info("Configuration update received from IoT Hub.")
+        logging.info(f"New configuration: {new_config}")
         # Handle configuration update logic here
