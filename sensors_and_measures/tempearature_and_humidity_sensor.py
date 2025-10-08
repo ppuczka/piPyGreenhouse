@@ -51,8 +51,20 @@ class AirTemperature:
                
 
 class TemperatureHumiditySensor(SensorInterface):
-    def __init__(self, dht_sensor_type: str, pin: str):
+    def __init__(
+        self,
+        dht_sensor_type: str,
+        pin: str,
+        temp_threshold_high: int,
+        temp_threshold_lo: int,
+        humid_threshold_high: int,
+        humid_threshold_lo: int
+        ):
         self.sensor = seeed_dht.DHT(dht_sensor_type, pin)
+        self.temp_threshold_high = temp_threshold_high
+        self.temp_threshold_lo = temp_threshold_lo
+        self.humid_threshold_high = humid_threshold_high
+        self.humid_threshold_lo = humid_threshold_lo
     
     def get_measurements(self):
         return self._get_humidity(), self._get_temperature()

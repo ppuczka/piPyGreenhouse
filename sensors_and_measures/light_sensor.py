@@ -21,3 +21,16 @@ class LightIntensitySensor(SensorInterface):
         value = self.adc.read(self.channel)
         return LightIntensity(value)
     
+    # Todo: implement alert logic based on thresholds
+    def alert(self):
+        logging.info("Light intensity alert!")
+        
+    # Todo: implement proper lux calculation based on sensor datasheet
+    def _calculate_lux(self, raw_value: int) -> float:
+        # Example conversion formula (this may vary based on the sensor)
+        return (raw_value / 1023.0) * 1000  # Convert to lux assuming a max of 1000 lux
+    
+    # Todo: implement proper lux calculation based on sensor datasheet
+    def _calculate_daily_light_integral(self, lux_values: list, time_interval_hours: float) -> float:
+        # DLI = (Sum of lux readings) * (time interval in hours) / 1000000
+        return (sum(lux_values) * time_interval_hours) / 1000000

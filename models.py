@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import uuid
 from datetime import datetime
 from sensors_and_measures.light_sensor import LightIntensity
@@ -35,3 +36,22 @@ class Greenhouse:
                         Air temperature (value: {self.air_temperature.temperature}, temperature_level: {self.air_temperature.temperature_level}) 
                         Air humidity (value: {self.air_humidity.humidity}, humidity_level: {self.air_humidity.humidity_level}),
                         Light intensity (value: {self.light_intensity})'''
+
+
+@dataclass
+class GreenhouseAppConfig:
+    temperature_lo: int
+    temperature_high: int
+    humidity_lo: int
+    humidity_high: int
+    soil_moisture_lo: int
+    soil_moisture_high: int
+
+    watering_duration_sec: int
+    atomizing_duration_sec: int
+
+    display_backlight_on: bool
+
+    telemetry_send_sec: int
+    metric_read_sec: int
+    alerting_sec: int

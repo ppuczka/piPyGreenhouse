@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 from azure_services import AzureCosmosDbClient, AzureIotHubClient, AzureIotHubIncomingSignalHandler
 from greenhouse import GreenhouseService
 from controllers.greenhouse_controllers import WaterPumpController
+from models import GreenhouseAppConfig
 from sensors_and_measures.lcd_display import LcdDisplay
 from sensors_and_measures.light_sensor import LightIntensitySensor
 from sensors_and_measures.moisture_sensor import SoilMoistureSensor
@@ -24,14 +25,32 @@ class Container(containers.DeclarativeContainer):
     config.from_ini(config_file)
     config.azure.iot.hub.connection.string.from_env("AZURE_IOT_HUB_CONNECTION_STRING", required=True)
 
-    greenhouse_config = providers.Configuration()
-    greenhouse_config.from_ini(app_defaults_file) 
-       
+    greenhouse_app_defaults = providers.Configuration()
+    greenhouse_app_defaults.from_ini(app_defaults_file) 
+
+    greenhouse_app_config = providers.Singleton(
+        GreenhouseAppConfig,
+        config.thresholds.temperature_lo.as_int(),
+        config.thresholds.temperature_high.as_int(),
+        config.thresholds.humidity_lo.as_int(),
+        config.thresholds.humidity_high.as_int(),
+        config.thresholds.soil_moisture_lo.as_int(),
+        config.thresholds.soil_moisture_high.as_int(),
+        config.watering.duration_sec.as_int(),
+        config.atomizing.duration_sec.as_int(),
+        config.display.backlight_on.as_bool(),
+        config.intervals.telemetry_send_sec.as_int(),
+        config.intervals.metric_read_sec.as_int(),
+        config.intervals.alerting_sec.as_int()
+    )
+    
+    
     logging = providers.Resource(
             logging.config.fileConfig,
             fname=os.path.join(os.path.dirname(__file__), "logging.ini"),
     )
   
+
     database_client = providers.Singleton(
         AzureCosmosDbClient,
         config.database.uri,
@@ -42,7 +61,8 @@ class Container(containers.DeclarativeContainer):
     
     water_pump_controller = providers.Singleton(
         WaterPumpController,
-        config.controllers.water_pump_controller_pin.as_int()
+        config.controllers.water_pump_controller_pin.as_int(),
+        greenhouse_app_config.provided.watering_duration_sec
     )
     
     
@@ -62,13 +82,19 @@ class Container(containers.DeclarativeContainer):
     soil_moisture_sensor = providers.Singleton(
         SoilMoistureSensor,
         config.sensors.soil_moisture_sensor_pin.as_int(), 
-        )
+        greenhouse_app_config.provided.soil_moisture_threshold_high,
+        greenhouse_app_config.provided.soil_moisture_threshold_lo
+    )
     
     
     temp_and_humidity_sensor = providers.Singleton(
         TemperatureHumiditySensor,
         config.sensors.dht_sensor_type,
-        config.sensors.temperature_humidity_sensor_pin.as_int()
+        config.sensors.temperature_humidity_sensor_pin.as_int(),
+        greenhouse_app_config.provided.temp_threshold_high,
+        greenhouse_app_config.provided.temp_threshold_lo,
+        greenhouse_app_config.provided.humid_threshold_high,
+        greenhouse_app_config.provided.humid_threshold_lo
     )
     
     
@@ -79,7 +105,9 @@ class Container(containers.DeclarativeContainer):
     
     
     lcd_display = providers.Singleton(
-        LcdDisplay 
+        LcdDisplay,
+        greenhouse_app_config.provided.display_interval_sec,
+        greenhouse_app_config.provided.backlight_on
     )
     
 

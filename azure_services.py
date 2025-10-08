@@ -167,3 +167,7 @@ class AzureIotHubClient:
                     
         thread = threading.Thread(target=receive_loop, daemon=True)
         thread.start()
+
+    def on_config_update(self, new_config: dict):
+        logging.info("Configuration update received from IoT Hub.")
+        # Handle configuration update logic here

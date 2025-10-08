@@ -31,8 +31,10 @@ class SoilMoisture:
         logging.info(f"Current soil moisture: {self.soil_moisture} ")
         
 class SoilMoistureSensor(SensorInterface):
-    def __init__(self, pin: int):
+    def __init__(self, pin: int, soil_moisture_threshold_high: int, soil_moisture_threshold_lo: int):
         self.channel = pin
+        self.soil_moisture_threshold_high = soil_moisture_threshold_high
+        self.soil_moisture_threshold_lo = soil_moisture_threshold_lo
         self.adc = ADC()
 
     def get_measurements(self):

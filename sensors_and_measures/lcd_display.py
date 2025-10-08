@@ -9,7 +9,7 @@ import sys
 from models import Greenhouse
 
 class LcdDisplay(JHD1802):
-    def __init__(self, address = 0x3E, display_interval_sec = 5):
+    def __init__(self, display_interval_sec: int, backlight_on: bool, address = 0x3E):
         self._bus = Bus()
         self._addr = address
         if self._bus.write_byte(self._addr, 0):
@@ -18,7 +18,9 @@ class LcdDisplay(JHD1802):
         self.dispaly_interval_sec = display_interval_sec
         self.textCommand(0x02)
         time.sleep(0.1)
-        self.textCommand(0x08 | 0x04) # display on, no cursor
+        if backlight_on:
+            self.textCommand(0x08 | 0x04) # display on, no cursor
+        
         self.textCommand(0x28)
         logging.info(f"LCD initialized ")
         logging.info(f"Display interval: {self.dispaly_interval_sec}s")

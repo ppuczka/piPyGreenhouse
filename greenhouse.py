@@ -22,6 +22,8 @@ class GreenhouseService:
         lcd_display: LcdDisplay,
         db_client: AzureCosmosDbClient,
         iot_hub_client: AzureIotHubClient,
+        measure_interval_sec: int,
+        save_interval_min: int
         ):
         
         self.soil_moisture_sensor = soil_moisture_sensor
@@ -31,12 +33,15 @@ class GreenhouseService:
         self.db_client = db_client
         self.iot_hub_client = iot_hub_client
         self.start_time = time.time()
-        
+
+        self.measure_interval_sec = measure_interval_sec
+        self.save_interval_min = save_interval_min
+
         self.greenhouse_metrics  = None
         self.lock = threading.Lock()
 
 
-    async def run_in_parallel(self, measure_interval_sec: int = 60, save_interval_min: int = 15):
+    async def run_in_parallel(self):
         try:
             self.iot_hub_client.connect()
         except AzureIotHubClientException as iotEx:
@@ -47,7 +52,7 @@ class GreenhouseService:
 
         measure_thread = threading.Thread(
             target=self._start_measuring_loop,
-            args=(measure_interval_sec, save_interval_min),
+            args=(self.measure_interval_sec, self.save_interval_min),
             daemon=True
         )
         
@@ -62,7 +67,7 @@ class GreenhouseService:
         # display_thread.join()
 
 
-    def _start_measuring_loop(self, measure_interval_sec: int = 60, save_interval_min: int = 15):
+    def _start_measuring_loop(self, measure_interval_sec: int, save_interval_min: int):
         last_save_time = time.time()
         while True:
             logging.info("Performing measurement...")
