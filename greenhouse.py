@@ -141,3 +141,12 @@ class GreenhouseService:
         minutes, seconds = divmod(remainder, 60)
         return f"{int(hours):02}:{int(minutes):02}:{int(seconds):02}"
 
+class GreenhouseDeviceRegistry:
+    def __init__(self):
+        self.controllers = {}
+        
+    def register_controller(self, controller) -> None:
+        self.controllers[controller.controller_type] = controller
+
+    def get_controller(self, controller_type: str):
+        return self.controllers.get(controller_type, None)

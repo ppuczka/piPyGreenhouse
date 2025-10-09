@@ -12,8 +12,12 @@ class GreenhouseControlSignal:
     TURN_ON = "turn_on"
     TURN_OFF = "turn_off"
 
+class ControllerType:
+    PUMP = "pump"
+    LCD = "lcd"
+    ATOMIZER = "atomizer"
 
-class ControlInterface:
+class DeviceControllerInterface:
     def control(self, signal: str):
         pass
 
@@ -26,15 +30,17 @@ class WaterPumpButton(GPIO):
     pass
     
 
-class WaterPumpController(GPIO, ControlInterface):  
+class WaterPumpController(GPIO, DeviceControllerInterface):  
     def __init__(self, pump_gpio_pin: int = None, watering_duration_sec: int = 5):
         if pump_gpio_pin is None:
             raise ValueError("Pump GPIO pin must be provided")
-
+        
+        self.controller_type = ControllerType.PUMP
+        
         if watering_duration_sec <= 0 or watering_duration_sec > MAX_WATERING_DURATION_SEC:
             logging.warning(f"Watering duration must be between 1 and {MAX_WATERING_DURATION_SEC} seconds. Setting to default 5 seconds.")
             watering_duration_sec = 5
-
+        
         self.watering_duration_sec = watering_duration_sec
         self._stop_signal = True
         self._pump_thread = None

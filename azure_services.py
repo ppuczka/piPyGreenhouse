@@ -8,20 +8,16 @@ from azure.identity import DefaultAzureCredential
 from azure.iot.device import IoTHubDeviceClient, Message
 from azure.cosmos import CosmosClient
 
+from greenhouse import GreenhouseDeviceRegistry
 from models import Greenhouse
-from controllers.greenhouse_controllers import WaterPumpController
+from controllers.greenhouse_controllers import DeviceControllerInterface, WaterPumpController
 
 class AzureIotHubSignalType:
     METRICS = "metrics"
     ALERT = "alert"
     COMMAND = "command"
     MESSAGE = "message"
-        
-        
-class ControlSignal:
-    PUMP = "pump"
-    LCD = "lcd"
-    
+                    
             
 class AzureIotHubClientException(Exception):
     pass
@@ -66,8 +62,9 @@ class AzureIotHubMessage:
         
 
 class AzureIotHubIncomingSignalHandler:
-    def __init__(self, water_pump_controller: WaterPumpController):
-        self.water_pump_controller = water_pump_controller
+    def __init__(self, greenhouse_controller_registry: GreenhouseDeviceRegistry, water_pump_controller: WaterPumpController):
+        self.greenhouse_controller_registry = greenhouse_controller_registry
+        logging.info("Azure IoT Hub Incoming Signal Handler initialized.")
         
         
     def handle_incoming_signal(self, message: Message):
@@ -98,17 +95,14 @@ class AzureIotHubIncomingSignalHandler:
 
     def _handle_command(self, properties: dict):
         logging.info("Handling command signal...")
-        # Lowercase all custom property keys for case-insensitive matching
-        if ControlSignal.PUMP in properties.keys():
-            logging.info(f"Pump control signal received: {properties[ControlSignal.PUMP]}")
-            self.water_pump_controller.control(properties[ControlSignal.PUMP])
-            logging.info(f"Pump control signal executed: {properties[ControlSignal.PUMP]}")
-            return
-        
-        if ControlSignal.LCD in properties.keys():
-            logging.info(f"LCD control signal received: {properties[ControlSignal.LCD]}")
-            return
-        logging.warning("Unknown command signal received.")
+        for signal_type, value in properties.items():
+            controller: DeviceControllerInterface = self.greenhouse_controller_registry.get_controller(signal_type)
+            if controller:
+                logging.info(f"Executing command '{value}' on controller '{signal_type}'")
+                controller.control(value)
+                return
+            else:
+                logging.warning(f"No controller found for signal: {signal_type}")
         return
     
     
