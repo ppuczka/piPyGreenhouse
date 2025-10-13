@@ -8,16 +8,15 @@ from azure.identity import DefaultAzureCredential
 from azure.iot.device import IoTHubDeviceClient, Message
 from azure.cosmos import CosmosClient
 
-from greenhouse import GreenhouseDeviceRegistry
 from models import Greenhouse
-from controllers.greenhouse_controllers import DeviceControllerInterface, WaterPumpController
+from controllers.greenhouse_controllers import DeviceControllerInterface, GreenhouseDeviceRegistry, WaterPumpController
 
 class AzureIotHubSignalType:
     METRICS = "metrics"
     ALERT = "alert"
     COMMAND = "command"
     MESSAGE = "message"
-                    
+    TWINS = "twins"              
             
 class AzureIotHubClientException(Exception):
     pass
@@ -62,8 +61,9 @@ class AzureIotHubMessage:
         
 
 class AzureIotHubIncomingSignalHandler:
-    def __init__(self, greenhouse_controller_registry: GreenhouseDeviceRegistry, water_pump_controller: WaterPumpController):
+    def __init__(self, greenhouse_controller_registry: GreenhouseDeviceRegistry, app_config=None):
         self.greenhouse_controller_registry = greenhouse_controller_registry
+        self.app_config = app_config
         logging.info("Azure IoT Hub Incoming Signal Handler initialized.")
         
         
@@ -104,21 +104,48 @@ class AzureIotHubIncomingSignalHandler:
             else:
                 logging.warning(f"No controller found for signal: {signal_type}")
         return
+
+    def _handle_twin_update(self, patch):
+        """Handle twin desired properties patch updates"""
+        logging.info(f"Processing twin patch update: {patch}")
+        
+        if self.app_config is None:
+            logging.warning("No app_config provided to handle twin updates")
+            return
+            
+        try:
+            # Update the configuration with the patch
+            updated = self.app_config.update_from_twin_patch(patch)
+            if updated:
+                logging.info("Configuration updated successfully from twin patch")
+            else:
+                logging.info("No configuration changes made from twin patch")
+        except Exception as e:
+            logging.error(f"Error handling twin update: {e}")
+            return
     
-    
+# Use different handlers for direct device connection and Iot Twins    
 class AzureIotHubClient:
-    def __init__(self, signal_handler: AzureIotHubIncomingSignalHandler, connection_string: str):
+    def __init__(self, signal_handler: AzureIotHubIncomingSignalHandler,  connection_string: str):
         self.connection_string = connection_string
         self.signal_handler = signal_handler
         self.client = IoTHubDeviceClient.create_from_connection_string(connection_string)
-        logging.info("Azure IoT Hub Client initialized.")
-    
+        self.twin_update_callback = None
+        self._twin_update_thread = None
+        self._twin_update_interval = 30 
+        self._running = False
+        self._current_metrics = None
+        self._device_status = {}
+        logging.info("Azure IoT Hub Client initialized.")    
     
     def connect(self):
-        self.client.on_twin_desired_properties_patch_received = self.on_config_update
         try:
             self.client.connect()
-            logging.info("Connected to Azure IoT Hub.")
+            
+            self.client.on_message_received = self._on_message_received
+            self.client.on_twin_desired_properties_patch_received = self._on_twin_patch_received
+
+            logging.info("Connected to Azure IoT Hub with twins support.")
         except Exception as e:
             logging.error(f"Failed to connect to IoT Hub: {e}")
             raise AzureIotHubClientException("Failed to connect to IoT Hub") from e
@@ -141,29 +168,35 @@ class AzureIotHubClient:
             logging.warning(f"Failed to send telemetry: {e}")
     
     
-    def receive_message(self) -> Optional[Message]:
+    def update_twin_properties(self, reported_properties: dict):
         try:
-            message = self.client.receive_message()  # blocking call
+            self.client.patch_twin_reported_properties(reported_properties)
+            logging.info("Twin reported properties updated.")
+        except Exception as e:
+            logging.warning(f"Failed to update twin properties: {e}")
+    
+    
+    def get_device_twin(self):
+        try:
+            twin = self.client.get_twin()
+            logging.info("Device twin retrieved.")
+            return twin
+        except Exception as e:
+            logging.warning(f"Failed to get device twin: {e}")
+            return None
+    
+    
+    def _on_twin_patch_received(self, patch):
+            logging.info(f"Twin patch received: {patch}")
+            if self.signal_handler:
+                self.signal_handler._handle_twin_update(patch)    
+
+
+    def _on_message_received(self, message) -> Optional[Message]:
+        try:
             logging.info(f"Received message from IoT Hub: {message.data}")
-            return message
+            self.signal_handler.handle_incoming_signal(message)
         except Exception as e:
             logging.warning(f"Error receiving message: {e}")
             return None
         
-    
-    def start_receiving_messages(self):
-        def receive_loop():
-            logging.info("Message receive loop started.")
-            while True:
-                logging.info("Message receive loop started.")
-                message = self.receive_message()
-                if message:
-                    self.signal_handler.handle_incoming_signal(message)
-                    
-        thread = threading.Thread(target=receive_loop, daemon=True)
-        thread.start()
-
-    def on_config_update(self, new_config: dict):
-        logging.info("Configuration update received from IoT Hub.")
-        logging.info(f"New configuration: {new_config}")
-        # Handle configuration update logic here

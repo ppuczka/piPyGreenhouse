@@ -4,9 +4,8 @@ import threading
 import time
 
 from azure_services import AzureCosmosDbClient, AzureIotHubClient, AzureIotHubClientException, AzureIotHubMessage, AzureIotHubSignalType
-from models import Greenhouse
+from models import Greenhouse, GreenhouseAppConfig
 import azure.cosmos as exceptions
-from controllers.greenhouse_controllers import WaterPumpController
 from sensors_and_measures.lcd_display import LcdDisplay
 from sensors_and_measures.light_sensor import LightIntensitySensor
 from sensors_and_measures.moisture_sensor import SoilMoistureSensor
@@ -22,8 +21,8 @@ class GreenhouseService:
         lcd_display: LcdDisplay,
         db_client: AzureCosmosDbClient,
         iot_hub_client: AzureIotHubClient,
-        measure_interval_sec: int,
-        save_interval_min: int
+        app_config: GreenhouseAppConfig,
+        config_manager=None
         ):
         
         self.soil_moisture_sensor = soil_moisture_sensor
@@ -33,12 +32,56 @@ class GreenhouseService:
         self.db_client = db_client
         self.iot_hub_client = iot_hub_client
         self.start_time = time.time()
+        self.app_config = app_config
 
-        self.measure_interval_sec = measure_interval_sec
-        self.save_interval_min = save_interval_min
+        self.measure_interval_sec = app_config.metric_read_sec
+        self.save_interval_min = app_config.telemetry_send_sec / 60 
 
         self.greenhouse_metrics  = None
         self.lock = threading.Lock()
+        
+        # Setup config manager if provided
+        if config_manager is not None:
+            self._setup_config_manager(config_manager)
+
+    def _setup_config_manager(self, config_manager):
+        """Initialize the configuration manager with all components"""
+        from controllers.greenhouse_controllers import WaterPumpController, WaterAtomizerController
+        
+        # Get the actual controller instances from the registry if available
+        water_pump_controller = None
+        atomizing_controller = None
+        
+        if hasattr(self.iot_hub_client, 'signal_handler') and hasattr(self.iot_hub_client.signal_handler, 'greenhouse_controller_registry'):
+            registry = self.iot_hub_client.signal_handler.greenhouse_controller_registry
+            water_pump_controller = registry.get_controller("pump")
+            atomizing_controller = registry.get_controller("atomizer")
+        
+        config_manager.register_components(
+            soil_moisture_sensor=self.soil_moisture_sensor,
+            temp_humid_sensor=self.temp_humid_sensor,
+            lcd_display=self.lcd_display,
+            water_pump_controller=water_pump_controller,
+            atomizing_controller=atomizing_controller,
+            greenhouse_service=self
+        )
+        
+        # Register the config manager's callback with the app config
+        self.app_config.register_update_callback(config_manager.on_config_updated)
+        
+        logging.info("Configuration manager setup completed")
+
+    def update_intervals(self, metric_read_sec: int, telemetry_send_sec: int):
+        """Update measurement and telemetry intervals dynamically"""
+        with self.lock:
+            old_measure_interval = self.measure_interval_sec
+            old_save_interval = self.save_interval_min
+            
+            self.measure_interval_sec = metric_read_sec
+            self.save_interval_min = telemetry_send_sec / 60
+            
+            logging.info(f"Updated measurement interval: {old_measure_interval} -> {metric_read_sec} seconds")
+            logging.info(f"Updated telemetry interval: {old_save_interval:.1f} -> {self.save_interval_min:.1f} minutes")
 
 
     async def run_in_parallel(self):
@@ -50,6 +93,8 @@ class GreenhouseService:
         except Exception as ex:
             logging.error(f"Unexpected error while connecting to IoT Hub: {ex}")
 
+        self.iot_hub_client.update_twin_properties(self.app_config.to_dict())
+
         measure_thread = threading.Thread(
             target=self._start_measuring_loop,
             args=(self.measure_interval_sec, self.save_interval_min),
@@ -58,8 +103,7 @@ class GreenhouseService:
         
         display_thread = threading.Thread(target=self._display_measures, daemon=True)
         
-        self.iot_hub_client.start_receiving_messages()
-        
+                
         measure_thread.start()
         measure_thread.join()
 
@@ -131,8 +175,12 @@ class GreenhouseService:
             logging.info(f"Telemetry sent: {self.greenhouse_metrics.to_cosmos_db_item()}")
         else:
             logging.warning("No greenhouse metrics available to send as telemetry.")
-       
-       
+    
+    
+    def _update_twins():
+        pass
+    
+            
     def _get_uptime(self) -> str:
         current_time = time.time()
         uptime_seconds = current_time - self.start_time
@@ -140,13 +188,3 @@ class GreenhouseService:
         hours, remainder = divmod(uptime_seconds, 3600)
         minutes, seconds = divmod(remainder, 60)
         return f"{int(hours):02}:{int(minutes):02}:{int(seconds):02}"
-
-class GreenhouseDeviceRegistry:
-    def __init__(self):
-        self.controllers = {}
-        
-    def register_controller(self, controller) -> None:
-        self.controllers[controller.controller_type] = controller
-
-    def get_controller(self, controller_type: str):
-        return self.controllers.get(controller_type, None)

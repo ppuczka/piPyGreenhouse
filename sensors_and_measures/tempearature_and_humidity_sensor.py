@@ -66,6 +66,16 @@ class TemperatureHumiditySensor(SensorInterface):
         self.humid_threshold_high = humid_threshold_high
         self.humid_threshold_lo = humid_threshold_lo
     
+    def update_thresholds(self, temp_threshold_high: int, temp_threshold_lo: int, 
+                         humid_threshold_high: int, humid_threshold_lo: int):
+        """Update the sensor thresholds dynamically"""
+        self.temp_threshold_high = temp_threshold_high
+        self.temp_threshold_lo = temp_threshold_lo
+        self.humid_threshold_high = humid_threshold_high
+        self.humid_threshold_lo = humid_threshold_lo
+        logging.info(f"Updated temperature thresholds: high={temp_threshold_high}, lo={temp_threshold_lo}")
+        logging.info(f"Updated humidity thresholds: high={humid_threshold_high}, lo={humid_threshold_lo}")
+    
     def get_measurements(self):
         return self._get_humidity(), self._get_temperature()
     

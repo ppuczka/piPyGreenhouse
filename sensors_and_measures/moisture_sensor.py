@@ -14,6 +14,7 @@ class SoilMoistureLevel(Enum):
     
     def __str__(self):
         return self.value
+ 
     
 class SoilMoisture:
     def __init__(self, soil_moisture: int):
@@ -26,9 +27,11 @@ class SoilMoisture:
         else:
             self.moisture_level = SoilMoistureLevel.WET
     
+    
     @property
     def getSoilMoisture(self):
         logging.info(f"Current soil moisture: {self.soil_moisture} ")
+    
         
 class SoilMoistureSensor(SensorInterface):
     def __init__(self, pin: int, soil_moisture_threshold_high: int, soil_moisture_threshold_lo: int):
@@ -36,11 +39,19 @@ class SoilMoistureSensor(SensorInterface):
         self.soil_moisture_threshold_high = soil_moisture_threshold_high
         self.soil_moisture_threshold_lo = soil_moisture_threshold_lo
         self.adc = ADC()
+    
+    def update_thresholds(self, soil_moisture_threshold_high: int, soil_moisture_threshold_lo: int):
+        """Update the sensor thresholds dynamically"""
+        self.soil_moisture_threshold_high = soil_moisture_threshold_high
+        self.soil_moisture_threshold_lo = soil_moisture_threshold_lo
+        logging.info(f"Updated soil moisture thresholds: high={soil_moisture_threshold_high}, lo={soil_moisture_threshold_lo}")
+
 
     def get_measurements(self):
         logging.info("Detecting moisture...")
         value = self.adc.read_voltage(self.channel)
         return SoilMoisture(value)
+    
     
     def alert(self):
         logging.info("Soil moisture alert!")

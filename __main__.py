@@ -3,7 +3,6 @@
 import asyncio
 import os
 from dependency_injector.wiring import Provide, inject
-from dotenv import load_dotenv
 
 from greenhouse import GreenhouseService
 from containers import Container

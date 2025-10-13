@@ -6,16 +6,19 @@ import logging
 
 import sys
 
+from controllers.greenhouse_controllers import DeviceType, DeviceControllerInterface
 from models import Greenhouse
 
-class LcdDisplay(JHD1802):
+class LcdDisplay(JHD1802, DeviceControllerInterface):
     def __init__(self, display_interval_sec: int, backlight_on: bool, address = 0x3E):
+        self.controller_type = DeviceType.LCD
         self._bus = Bus()
         self._addr = address
         if self._bus.write_byte(self._addr, 0):
             logging.error(f"Check if the LCD inserted, then try again")
             sys.exit(1)
         self.dispaly_interval_sec = display_interval_sec
+        self.backlight_on = backlight_on
         self.textCommand(0x02)
         time.sleep(0.1)
         if backlight_on:
@@ -28,6 +31,30 @@ class LcdDisplay(JHD1802):
         self.home()
         self.write("Initializing ...")
         time.sleep(1)
+
+    def update_display_settings(self, display_interval_sec: int, backlight_on: bool):
+        """Update display settings dynamically"""
+        self.dispaly_interval_sec = display_interval_sec
+        
+        if self.backlight_on != backlight_on:
+            self.backlight_on = backlight_on
+            if backlight_on:
+                self.textCommand(0x08 | 0x04)  # display on, no cursor
+                logging.info("LCD backlight turned ON")
+            else:
+                self.textCommand(0x08)  # display off
+                logging.info("LCD backlight turned OFF")
+        
+        logging.info(f"Updated LCD display interval: {display_interval_sec}s")
+
+    def control(self, signal: str):
+        """Control method for device controller interface"""
+        if signal.lower() == "turn_on":
+            self.update_display_settings(self.dispaly_interval_sec, True)
+        elif signal.lower() == "turn_off":
+            self.update_display_settings(self.dispaly_interval_sec, False)
+        else:
+            logging.warning(f"Unknown LCD control signal: {signal}")
         
     @property
     def name(self):

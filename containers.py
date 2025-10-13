@@ -6,19 +6,34 @@ from dependency_injector import containers, providers
 from dotenv import load_dotenv
 
 from azure_services import AzureCosmosDbClient, AzureIotHubClient, AzureIotHubIncomingSignalHandler
-from greenhouse import GreenhouseDeviceRegistry, GreenhouseService
-from controllers.greenhouse_controllers import WaterAtomizerController, WaterPumpController
+from greenhouse import GreenhouseService
+from controllers.greenhouse_controllers import GreenhouseDeviceRegistry, WaterAtomizerController, WaterPumpController
 from models import GreenhouseAppConfig
 from sensors_and_measures.lcd_display import LcdDisplay
 from sensors_and_measures.light_sensor import LightIntensitySensor
 from sensors_and_measures.moisture_sensor import SoilMoistureSensor
 from sensors_and_measures.tempearature_and_humidity_sensor import TemperatureHumiditySensor
+from config_manager import GreenhouseConfigManager
+
+
+def create_configured_registry(water_pump_controller, lcd_display, atomizing_controller):
+    registry = GreenhouseDeviceRegistry()
+    registry.register_controller(water_pump_controller)
+    registry.register_controller(lcd_display)
+    registry.register_controller(atomizing_controller)
+    return registry
 
 
 class Container(containers.DeclarativeContainer):
     load_dotenv(os.path.join(os.path.dirname(__file__),'.env'))
 
+    config_manager = providers.Singleton(
+        GreenhouseConfigManager
+    )
+
     config_file = os.path.join(os.path.dirname(__file__), "config.ini")
+    
+    
     app_defaults_file = os.path.join(os.path.dirname(__file__), "app_defaults.ini")
 
     config = providers.Configuration()
@@ -66,22 +81,9 @@ class Container(containers.DeclarativeContainer):
         greenhouse_app_config.provided.watering_duration_sec
     )
 
-    atomizing_controller = providers.Singleton(  # Placeholder for atomizing controller
-        WaterAtomizerController,
-        config.controllers.atomizing_controller_pin.as_int(),
-        greenhouse_app_config.provided.atomizing_duration_sec
-    )
 
-    iot_hub_signal_handler = providers.Singleton(
-        AzureIotHubIncomingSignalHandler,
-        water_pump_controller
-    )
-    
-    
-    iot_hub_client = providers.Singleton(
-        AzureIotHubClient,
-        iot_hub_signal_handler,
-        config.azure.iot.hub.connection.string
+    atomizing_controller = providers.Singleton(  
+        WaterAtomizerController
     )
 
 
@@ -116,10 +118,28 @@ class Container(containers.DeclarativeContainer):
         greenhouse_app_config.provided.display_backlight_on
     )
 
-    greenhouse_controller_registry = providers.Singleton(GreenhouseDeviceRegistry)
-    greenhouse_controller_registry.provided.register_controller(water_pump_controller)
-    greenhouse_controller_registry.provided.register_controller(lcd_display)
-    greenhouse_controller_registry.provided.register_controller(atomizing_controller)# Placeholder for atomizing controller
+
+    greenhouse_controller_registry = providers.Factory(
+        create_configured_registry,
+        water_pump_controller,
+        lcd_display,
+        atomizing_controller
+    )
+
+    
+    iot_hub_signal_handler = providers.Singleton(
+        AzureIotHubIncomingSignalHandler,
+        greenhouse_controller_registry,
+        greenhouse_app_config
+    )
+    
+
+    iot_hub_client = providers.Singleton(
+        AzureIotHubClient,
+        iot_hub_signal_handler,
+        config.azure.iot.hub.connection.string
+    )
+
     
     greenhouse_service = providers.Singleton(
         GreenhouseService,
@@ -129,6 +149,6 @@ class Container(containers.DeclarativeContainer):
         lcd_display,
         database_client,
         iot_hub_client,
-        greenhouse_app_config.provided.metric_read_sec,
-        greenhouse_app_config.provided.telemetry_send_sec
+        greenhouse_app_config,
+        config_manager
     )
