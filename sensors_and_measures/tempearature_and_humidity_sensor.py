@@ -30,9 +30,9 @@ class AirHumidity:
     def __init__(self, humidity: float):
         self.humidity = humidity
         
-        if 0 <= humidity and humidity < 45:
+        if 0 <= humidity and humidity < self.humid_threshold_lo:
             self.humidity_level  = AirHumidityLevel.LO
-        elif 45 <= humidity and humidity < 60:
+        elif self.humid_threshold_lo <= humidity and humidity < self.humid_threshold_high:
             self.humidity_level = AirHumidityLevel.OPTIMAL
         else:
             self.humidity_level = AirHumidityLevel.HIGH
@@ -41,10 +41,10 @@ class AirHumidity:
 class AirTemperature:
     def __init__(self, temperature: float):
         self.temperature = temperature
-        
-        if 0 <= temperature and temperature < 18:
-            self.temperature_level  = AirTemperatureLevel.LO
-        elif 18 <= temperature and temperature < 23:
+
+        if 0 <= temperature and temperature < self.temp_threshold_lo:
+            self.temperature_level = AirTemperatureLevel.LO
+        elif self.temp_threshold_lo <= temperature and temperature < self.temp_threshold_high:
             self.temperature_level = AirTemperatureLevel.OPTIMAL
         else:
             self.temperature_level = AirTemperatureLevel.HIGH

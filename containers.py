@@ -13,7 +13,7 @@ from sensors_and_measures.lcd_display import LcdDisplay
 from sensors_and_measures.light_sensor import LightIntensitySensor
 from sensors_and_measures.moisture_sensor import SoilMoistureSensor
 from sensors_and_measures.tempearature_and_humidity_sensor import TemperatureHumiditySensor
-from config_manager import GreenhouseConfigManager
+from config_manager import CONFIG_DIRECTORY_NAME, CONFIG_OVERRIDES_FILE_NAME, GreenhouseConfigManager
 
 
 def create_configured_registry(water_pump_controller, lcd_display, atomizing_controller):
@@ -32,9 +32,11 @@ class Container(containers.DeclarativeContainer):
     )
 
     config_file = os.path.join(os.path.dirname(__file__), "config.ini")
-    
-    
-    app_defaults_file = os.path.join(os.path.dirname(__file__), "app_defaults.ini")
+
+    if os.path.exists(os.path.join(os.path.dirname(__file__), CONFIG_DIRECTORY_NAME, CONFIG_OVERRIDES_FILE_NAME)):
+        app_defaults_file = os.path.join(os.path.dirname(__file__), CONFIG_DIRECTORY_NAME, CONFIG_OVERRIDES_FILE_NAME)
+    else:
+        app_defaults_file = os.path.join(os.path.dirname(__file__), "app_defaults.ini")
 
     config = providers.Configuration()
     config.from_ini(config_file)

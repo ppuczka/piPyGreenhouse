@@ -8,7 +8,7 @@ from azure.identity import DefaultAzureCredential
 from azure.iot.device import IoTHubDeviceClient, Message
 from azure.cosmos import CosmosClient
 
-from models import Greenhouse
+from models import Greenhouse, GreenhouseAppConfig
 from controllers.greenhouse_controllers import DeviceControllerInterface, GreenhouseDeviceRegistry, WaterPumpController
 
 class AzureIotHubSignalType:
@@ -61,7 +61,7 @@ class AzureIotHubMessage:
         
 
 class AzureIotHubIncomingSignalHandler:
-    def __init__(self, greenhouse_controller_registry: GreenhouseDeviceRegistry, app_config=None):
+    def __init__(self, greenhouse_controller_registry: GreenhouseDeviceRegistry, app_config: Optional[GreenhouseAppConfig] = None):
         self.greenhouse_controller_registry = greenhouse_controller_registry
         self.app_config = app_config
         logging.info("Azure IoT Hub Incoming Signal Handler initialized.")
@@ -105,8 +105,8 @@ class AzureIotHubIncomingSignalHandler:
                 logging.warning(f"No controller found for signal: {signal_type}")
         return
 
+
     def _handle_twin_update(self, patch):
-        """Handle twin desired properties patch updates"""
         logging.info(f"Processing twin patch update: {patch}")
         
         if self.app_config is None:
@@ -114,7 +114,6 @@ class AzureIotHubIncomingSignalHandler:
             return
             
         try:
-            # Update the configuration with the patch
             updated = self.app_config.update_from_twin_patch(patch)
             if updated:
                 logging.info("Configuration updated successfully from twin patch")
@@ -124,7 +123,7 @@ class AzureIotHubIncomingSignalHandler:
             logging.error(f"Error handling twin update: {e}")
             return
     
-# Use different handlers for direct device connection and Iot Twins    
+
 class AzureIotHubClient:
     def __init__(self, signal_handler: AzureIotHubIncomingSignalHandler,  connection_string: str):
         self.connection_string = connection_string
@@ -170,11 +169,44 @@ class AzureIotHubClient:
     
     def update_twin_properties(self, reported_properties: dict):
         try:
+            if not reported_properties:
+                logging.warning("No properties provided to update")
+                return False
+                
+            if not self.client:
+                logging.error("IoT Hub client is not initialized")
+                return False
+                
+            logging.info(f"Attempting to update twin properties: {json.dumps(reported_properties, indent=2)}")
+            
+            try:
+                json.dumps(reported_properties)
+            except (TypeError, ValueError) as e:
+                logging.error(f"Properties are not JSON serializable: {e}")
+                return False
+                
             self.client.patch_twin_reported_properties(reported_properties)
-            logging.info("Twin reported properties updated.")
+            logging.info("Twin reported properties updated successfully")
+            return True
+            
+        except AttributeError as e:
+            logging.error(f"Client method not available: {e}")
+            return False
+        except ConnectionError as e:
+            logging.error(f"Connection error updating twin properties: {e}")
+            return False
+        except TimeoutError as e:
+            logging.error(f"Timeout updating twin properties: {e}")
+            return False
+        except ValueError as e:
+            logging.error(f"Invalid data format for twin properties: {e}")
+            return False
         except Exception as e:
-            logging.warning(f"Failed to update twin properties: {e}")
-    
+            logging.error(f"Unexpected error updating twin properties: {str(e)}, Type: {type(e).__name__}")
+            # Log additional context for debugging
+            logging.error(f"Client state: connected={getattr(self.client, 'connected', 'unknown')}")
+            logging.error(f"Properties size: {len(str(reported_properties))} chars")
+            return False
     
     def get_device_twin(self):
         try:

@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 import threading
 import time
@@ -40,15 +41,50 @@ class GreenhouseService:
         self.greenhouse_metrics  = None
         self.lock = threading.Lock()
         
-        # Setup config manager if provided
         if config_manager is not None:
             self._setup_config_manager(config_manager)
 
-    def _setup_config_manager(self, config_manager):
-        """Initialize the configuration manager with all components"""
-        from controllers.greenhouse_controllers import WaterPumpController, WaterAtomizerController
+    
+    async def run_in_parallel(self):
+        try:
+            self.iot_hub_client.connect()
+        except AzureIotHubClientException as iotEx:
+            logging.error(f"Failed to connect to IoT Hub: {iotEx}")
+            return
+        except Exception as ex:
+            logging.error(f"Unexpected error while connecting to IoT Hub: {ex}")
+
+        self.iot_hub_client.update_twin_properties(self.app_config.to_twin_properties_dict())
+
+        measure_thread = threading.Thread(
+            target=self._start_measuring_loop,
+            args=(self.measure_interval_sec, self.save_interval_min),
+            daemon=True
+        )
         
-        # Get the actual controller instances from the registry if available
+        display_thread = threading.Thread(target=self._display_measures, daemon=True)
+        
+                
+        measure_thread.start()
+        measure_thread.join()
+
+        # display_thread.start()
+        # display_thread.join()
+  
+
+    def update_intervals(self, metric_read_sec: int, telemetry_send_sec: int):
+        with self.lock:
+            old_measure_interval = self.measure_interval_sec
+            old_save_interval = self.save_interval_min
+            
+            self.measure_interval_sec = metric_read_sec
+            self.save_interval_min = telemetry_send_sec / 60
+            
+            logging.info(f"Updated measurement interval: {old_measure_interval} -> {metric_read_sec} seconds")
+            logging.info(f"Updated telemetry interval: {old_save_interval:.1f} -> {self.save_interval_min:.1f} minutes")
+
+
+    def _setup_config_manager(self, config_manager):
         water_pump_controller = None
         atomizing_controller = None
         
@@ -66,49 +102,9 @@ class GreenhouseService:
             greenhouse_service=self
         )
         
-        # Register the config manager's callback with the app config
         self.app_config.register_update_callback(config_manager.on_config_updated)
         
         logging.info("Configuration manager setup completed")
-
-    def update_intervals(self, metric_read_sec: int, telemetry_send_sec: int):
-        """Update measurement and telemetry intervals dynamically"""
-        with self.lock:
-            old_measure_interval = self.measure_interval_sec
-            old_save_interval = self.save_interval_min
-            
-            self.measure_interval_sec = metric_read_sec
-            self.save_interval_min = telemetry_send_sec / 60
-            
-            logging.info(f"Updated measurement interval: {old_measure_interval} -> {metric_read_sec} seconds")
-            logging.info(f"Updated telemetry interval: {old_save_interval:.1f} -> {self.save_interval_min:.1f} minutes")
-
-
-    async def run_in_parallel(self):
-        try:
-            self.iot_hub_client.connect()
-        except AzureIotHubClientException as iotEx:
-            logging.error(f"Failed to connect to IoT Hub: {iotEx}")
-            return
-        except Exception as ex:
-            logging.error(f"Unexpected error while connecting to IoT Hub: {ex}")
-
-        self.iot_hub_client.update_twin_properties(self.app_config.to_dict())
-
-        measure_thread = threading.Thread(
-            target=self._start_measuring_loop,
-            args=(self.measure_interval_sec, self.save_interval_min),
-            daemon=True
-        )
-        
-        display_thread = threading.Thread(target=self._display_measures, daemon=True)
-        
-                
-        measure_thread.start()
-        measure_thread.join()
-
-        # display_thread.start()
-        # display_thread.join()
 
 
     def _start_measuring_loop(self, measure_interval_sec: int, save_interval_min: int):
@@ -162,7 +158,7 @@ class GreenhouseService:
             air_humidity=air_humid,
             light_intensity=light_intensity
         )
-        logging.info(f"Current metrics read: {self.greenhouse_metrics.to_cosmos_db_item()}")
+        logging.info(f"Current metrics read: {json.dumps(self.greenhouse_metrics.to_cosmos_db_item(), indent=2)}")
        
        
     def _send_metrics_telemetry_to_iot_hub(self):

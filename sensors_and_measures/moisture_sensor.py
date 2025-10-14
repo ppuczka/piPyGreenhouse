@@ -19,10 +19,10 @@ class SoilMoistureLevel(Enum):
 class SoilMoisture:
     def __init__(self, soil_moisture: int):
         self.soil_moisture = soil_moisture / 40
-
-        if 0 <= soil_moisture and soil_moisture < 30:
+   
+        if 0 <= soil_moisture and soil_moisture < 30§:
             self.moisture_level = SoilMoistureLevel.DRY
-        elif 31 <= soil_moisture and soil_moisture < 50:
+        elif self.soil_moisture_threshold_lo <= soil_moisture and soil_moisture < self.soil_moisture_threshold_high:
             self.moisture_level= SoilMoistureLevel.MOIST
         else:
             self.moisture_level = SoilMoistureLevel.WET
@@ -41,7 +41,6 @@ class SoilMoistureSensor(SensorInterface):
         self.adc = ADC()
     
     def update_thresholds(self, soil_moisture_threshold_high: int, soil_moisture_threshold_lo: int):
-        """Update the sensor thresholds dynamically"""
         self.soil_moisture_threshold_high = soil_moisture_threshold_high
         self.soil_moisture_threshold_lo = soil_moisture_threshold_lo
         logging.info(f"Updated soil moisture thresholds: high={soil_moisture_threshold_high}, lo={soil_moisture_threshold_lo}")

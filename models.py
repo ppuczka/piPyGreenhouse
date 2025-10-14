@@ -63,14 +63,11 @@ class GreenhouseAppConfig:
         self._update_callbacks = []
     
     def register_update_callback(self, callback):
-        """Register a callback that will be called when config is updated"""
         self._update_callbacks.append(callback)
     
     def update_from_twin_patch(self, patch: dict) -> bool:
-        """Update configuration from Azure IoT twin patch and notify callbacks"""
         updated = False
         
-        # Mapping twin property names to config field names
         field_mapping = {
             'temperature_lo': 'temperature_lo',
             'temperature_high': 'temperature_high',
@@ -92,7 +89,6 @@ class GreenhouseAppConfig:
                 old_value = getattr(self, field_name)
                 new_value = patch[twin_property]
                 
-                # Validate and convert types
                 try:
                     if field_name == 'display_backlight_on':
                         new_value = bool(new_value)
@@ -106,7 +102,6 @@ class GreenhouseAppConfig:
                     logging.warning(f"Failed to update config {field_name}: {e}")
         
         if updated:
-            # Notify all registered callbacks
             for callback in self._update_callbacks:
                 try:
                     callback(self)
@@ -115,16 +110,7 @@ class GreenhouseAppConfig:
                     
         return updated
     
-    def to_dict(self):
-        return self.__dict__.copy()
-    
-    
-    def to_json(self):
-        data = self.__dict__.copy()
-        # Remove callbacks from the dict as they're not serializable
-        data.pop('_update_callbacks', None)
-        if data is not None:
-            data["report_time"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            return json.dumps(data)
-        logging.error("Failed to convert to JSON")
-        return "{}"
+    def to_twin_properties_dict(self):
+        twins = self.__dict__.copy()
+        twins.pop('_update_callbacks', None)
+        return twins
