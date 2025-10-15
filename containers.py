@@ -14,7 +14,11 @@ from sensors_and_measures.light_sensor import LightIntensitySensor
 from sensors_and_measures.moisture_sensor import SoilMoistureSensor
 from sensors_and_measures.tempearature_and_humidity_sensor import TemperatureHumiditySensor
 from config_manager import CONFIG_DIRECTORY_NAME, CONFIG_OVERRIDES_FILE_NAME, GreenhouseConfigManager
+from tempfile import NamedTemporaryFile
+import shutil
 
+MAIN_CONFIG_FILE_NAME = "config.ini"
+APP_DEFAULTS_FILE_NAME = "app_defaults.ini"
 
 def create_configured_registry(water_pump_controller, lcd_display, atomizing_controller):
     registry = GreenhouseDeviceRegistry()
@@ -31,13 +35,22 @@ class Container(containers.DeclarativeContainer):
         GreenhouseConfigManager
     )
 
-    config_file = os.path.join(os.path.dirname(__file__), "config.ini")
+    config_file = os.path.join(os.path.dirname(__file__), CONFIG_DIRECTORY_NAME, MAIN_CONFIG_FILE_NAME)
 
     if os.path.exists(os.path.join(os.path.dirname(__file__), CONFIG_DIRECTORY_NAME, CONFIG_OVERRIDES_FILE_NAME)):
-        app_defaults_file = os.path.join(os.path.dirname(__file__), CONFIG_DIRECTORY_NAME, CONFIG_OVERRIDES_FILE_NAME)
+        app_overrides_file = os.path.join(os.path.dirname(__file__), CONFIG_DIRECTORY_NAME, CONFIG_OVERRIDES_FILE_NAME)
+        if os.path.exists(app_overrides_file):
+            with open(app_overrides_file, "r") as f:
+                lines = f.readlines()[3:]
+                temp_file = NamedTemporaryFile(delete=False, mode='w')
+                temp_file.writelines(lines)
+                temp_file.close()
+                app_defaults_file = temp_file.name
+        else:
+            app_defaults_file = app_overrides_file
     else:
-        app_defaults_file = os.path.join(os.path.dirname(__file__), "app_defaults.ini")
-
+        app_defaults_file = os.path.join(os.path.dirname(__file__), CONFIG_DIRECTORY_NAME, APP_DEFAULTS_FILE_NAME)
+    
     config = providers.Configuration()
     config.from_ini(config_file)
     config.azure.iot.hub.connection.string.from_env("AZURE_IOT_HUB_CONNECTION_STRING", required=True)

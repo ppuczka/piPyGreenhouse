@@ -27,28 +27,16 @@ class AirTemperatureLevel(Enum):
 
     
 class AirHumidity:    
-    def __init__(self, humidity: float):
+    def __init__(self, humidity: float, humidity_level: AirHumidityLevel = None):
         self.humidity = humidity
-        
-        if 0 <= humidity and humidity < self.humid_threshold_lo:
-            self.humidity_level  = AirHumidityLevel.LO
-        elif self.humid_threshold_lo <= humidity and humidity < self.humid_threshold_high:
-            self.humidity_level = AirHumidityLevel.OPTIMAL
-        else:
-            self.humidity_level = AirHumidityLevel.HIGH
+        self.humidity_level = humidity_level
 
  
 class AirTemperature:
-    def __init__(self, temperature: float):
+    def __init__(self, temperature: float, temperature_level: AirTemperatureLevel):
         self.temperature = temperature
+        self.temperature_level = temperature_level
 
-        if 0 <= temperature and temperature < self.temp_threshold_lo:
-            self.temperature_level = AirTemperatureLevel.LO
-        elif self.temp_threshold_lo <= temperature and temperature < self.temp_threshold_high:
-            self.temperature_level = AirTemperatureLevel.OPTIMAL
-        else:
-            self.temperature_level = AirTemperatureLevel.HIGH
-               
 
 class TemperatureHumiditySensor(SensorInterface):
     def __init__(
@@ -82,9 +70,25 @@ class TemperatureHumiditySensor(SensorInterface):
     def _get_humidity(self):
         logging.info("Detecting humidity...")
         humidity, _ = self.sensor.read()
-        return AirHumidity(humidity)
-    
+        humidity_level = None
+        
+        if 0 <= humidity and humidity < self.humid_threshold_lo:
+            humidity_level = AirHumidityLevel.LO
+        elif self.humid_threshold_lo <= humidity and humidity < self.humid_threshold_high:
+            humidity_level = AirHumidityLevel.OPTIMAL
+        else:
+            humidity_level = AirHumidityLevel.HIGH
+        return AirHumidity(humidity, humidity_level)
+
     def _get_temperature(self):
         logging.info("Detecting temperature...")
         _, temperature = self.sensor.read()
-        return AirTemperature(temperature)
+        temperature_level = None
+        
+        if 0 <= temperature and temperature < self.temp_threshold_lo:
+            temperature_level = AirTemperatureLevel.LO
+        elif self.temp_threshold_lo <= temperature and temperature < self.temp_threshold_high:
+            temperature_level = AirTemperatureLevel.OPTIMAL
+        else:
+            temperature_level = AirTemperatureLevel.HIGH
+        return AirTemperature(temperature, temperature_level)

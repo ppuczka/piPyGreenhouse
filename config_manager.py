@@ -1,3 +1,4 @@
+from datetime import datetime
 import logging
 import os
 from time import time
@@ -95,14 +96,18 @@ class GreenhouseConfigManager:
                 logging.error(f"Failed to update greenhouse service intervals: {e}")
         logging.info("Configuration update propagation completed")
         self._save_config_overrides(config)
+        self.greenhouse_service.iot_hub_client.update_twin_properties(config.to_twin_properties_dict())
     
     
     def _save_config_overrides(self, config: GreenhouseAppConfig):
         override_file = os.path.join(os.path.dirname(__file__), CONFIG_DIRECTORY_NAME, CONFIG_OVERRIDES_FILE_NAME)
+        if not os.path.exists(os.path.dirname(override_file)):
+            os.makedirs(os.path.dirname(override_file), exist_ok=True)
+        
         try:
             with open(override_file, 'w') as f:
                 f.write(f"{CONFIG_OVERRIDES_FILE_HEADER}\n")
-                f.write(f"#Last updated time: {time.strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+                f.write(f"#Last updated time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
                 f.write("[thresholds]\n")
                 f.write(f"temperature_lo = {config.temperature_lo}\n")
                 f.write(f"temperature_high = {config.temperature_high}\n")
@@ -127,5 +132,6 @@ class GreenhouseConfigManager:
             logging.info(f"Configuration overrides saved to {override_file}")
         except Exception as e:
             logging.error(f"Failed to save configuration overrides: {e}")
-
-        
+            logging.warning("Removing incomplete override file if exists")
+            if os.path.exists(override_file):
+               os.remove(override_file)

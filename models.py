@@ -27,7 +27,7 @@ class Greenhouse:
             "humidity": self.air_humidity.humidity,
             "humidity_level": self.air_humidity.humidity_level.value,
             "soil_moisture": self.soil_moisture.soil_moisture,
-            "soil_moisture_level": self.soil_moisture.moisture_level.value,
+            "soil_moisture_level": self.soil_moisture.soil_moisture_level.value,
             "light_intensity": self.light_intensity.intensity,
             "date_time": self.datetime
             }
