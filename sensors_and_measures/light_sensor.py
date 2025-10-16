@@ -12,20 +12,50 @@ class LightIntensity:
         logging.info(f"Current light intensity: {self.intensity}")
         
 class LightIntensitySensor(SensorInterface):
-    def __init__(self, pin: int):
+    def __init__(self, pin: int, light_threshold_low: float = 100, light_threshold_high: float = 800):
+        super().__init__()
         self.channel = pin
         self.adc = ADC()
+        self.light_threshold_low = light_threshold_low
+        self.light_threshold_high = light_threshold_high
+        
+        self._setup_threshold_config()
+    
+    def _setup_threshold_config(self):
+        from alerts import ThresholdConfig, AlertSeverity
+        
+        self.light_threshold_config = ThresholdConfig(
+            low_threshold=float(self.light_threshold_low),
+            high_threshold=float(self.light_threshold_high),
+            low_severity=AlertSeverity.MEDIUM,  
+            high_severity=AlertSeverity.LOW,
+            cooldown_seconds=900,
+            enabled=True
+        )
 
     def get_measurements(self):
-        logging.info("Detecting light intensity...")
-        value = self.adc.read(self.channel)
-        return LightIntensity(value)
+        try:
+            logging.info("Detecting light intensity...")
+            value = self.adc.read(self.channel)
+            if value is None or value < 0:
+                raise ValueError("Invalid light intensity reading")
+                
+            light_intensity_obj = LightIntensity(value)
+            
+            # Check thresholds and trigger alerts
+            self.set_threshold_config(self.light_threshold_config)
+            self.check_thresholds(light_intensity_obj.intensity, "light_intensity")
+            
+            return light_intensity_obj
+            
+        except Exception as e:
+            logging.error(f"Error reading light intensity sensor: {e}")
+            self.trigger_sensor_error_alert(str(e))
+            return None
     
-    # Todo: implement alert logic based on thresholds
     def alert(self):
         logging.info("Light intensity alert!")
         
-    # Todo: implement proper lux calculation based on sensor datasheet
     def _calculate_lux(self, raw_value: int) -> float:
         # Example conversion formula (this may vary based on the sensor)
         return (raw_value / 1023.0) * 1000  # Convert to lux assuming a max of 1000 lux

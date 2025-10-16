@@ -143,7 +143,7 @@ class AzureIotHubClient:
             
             self.client.on_message_received = self._on_message_received
             self.client.on_twin_desired_properties_patch_received = self._on_twin_patch_received
-
+            
             logging.info("Connected to Azure IoT Hub with twins support.")
         except Exception as e:
             logging.error(f"Failed to connect to IoT Hub: {e}")
@@ -203,7 +203,6 @@ class AzureIotHubClient:
             return False
         except Exception as e:
             logging.error(f"Unexpected error updating twin properties: {str(e)}, Type: {type(e).__name__}")
-            # Log additional context for debugging
             logging.error(f"Client state: connected={getattr(self.client, 'connected', 'unknown')}")
             logging.error(f"Properties size: {len(str(reported_properties))} chars")
             return False

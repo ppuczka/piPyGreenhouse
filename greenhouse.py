@@ -23,7 +23,8 @@ class GreenhouseService:
         db_client: AzureCosmosDbClient,
         iot_hub_client: AzureIotHubClient,
         app_config: GreenhouseAppConfig,
-        config_manager=None
+        config_manager=None,
+        alert_observer=None
         ):
         
         self.soil_moisture_sensor = soil_moisture_sensor
@@ -43,6 +44,9 @@ class GreenhouseService:
         
         if config_manager is not None:
             self._setup_config_manager(config_manager)
+            
+        if alert_observer is not None:
+            self._setup_alert_observer(alert_observer)
 
     
     async def run_in_parallel(self):
@@ -106,6 +110,13 @@ class GreenhouseService:
         
         logging.info("Configuration manager setup completed")
 
+    def _setup_alert_observer(self, alert_observer):
+        try:
+            alert_observer.set_iot_hub_client(self.iot_hub_client)
+            logging.info("Alert observer configured with IoT Hub client")
+        except Exception as e:
+            logging.error(f"Failed to setup alert observer: {e}")
+
 
     def _start_measuring_loop(self, measure_interval_sec: int, save_interval_min: int):
         last_save_time = time.time()
@@ -162,7 +173,7 @@ class GreenhouseService:
        
        
     def _send_metrics_telemetry_to_iot_hub(self):
-        if self.greenhouse_metrics is not None:
+        if self.greenhouse_metrics is not None and self.greenhouse_metrics.get_alerting():
             message = AzureIotHubMessage(
                 message_type=AzureIotHubSignalType.ALERT,
                 content=self.greenhouse_metrics

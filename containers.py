@@ -14,6 +14,7 @@ from sensors_and_measures.light_sensor import LightIntensitySensor
 from sensors_and_measures.moisture_sensor import SoilMoistureSensor
 from sensors_and_measures.tempearature_and_humidity_sensor import TemperatureHumiditySensor
 from config_manager import CONFIG_DIRECTORY_NAME, CONFIG_OVERRIDES_FILE_NAME, GreenhouseConfigManager
+from alert_observers import AzureIotHubAlertObserver
 from tempfile import NamedTemporaryFile
 import shutil
 
@@ -26,6 +27,15 @@ def create_configured_registry(water_pump_controller, lcd_display, atomizing_con
     registry.register_controller(lcd_display)
     registry.register_controller(atomizing_controller)
     return registry
+
+
+def setup_sensor_alerting(alert_observer, soil_moisture_sensor, temp_humidity_sensor, light_sensor):
+    soil_moisture_sensor.attach(alert_observer)
+    temp_humidity_sensor.attach(alert_observer)
+    light_sensor.attach(alert_observer)
+    
+    logging.info("Alert observer attached to all sensors")
+    return alert_observer
 
 
 class Container(containers.DeclarativeContainer):
@@ -142,6 +152,18 @@ class Container(containers.DeclarativeContainer):
     )
 
     
+    alert_observer = providers.Singleton(
+        AzureIotHubAlertObserver
+    )
+    
+    configured_alert_observer = providers.Factory(
+        setup_sensor_alerting,
+        alert_observer,
+        soil_moisture_sensor,
+        temp_and_humidity_sensor,
+        light_intensity_sensor
+    )
+    
     iot_hub_signal_handler = providers.Singleton(
         AzureIotHubIncomingSignalHandler,
         greenhouse_controller_registry,
@@ -165,5 +187,6 @@ class Container(containers.DeclarativeContainer):
         database_client,
         iot_hub_client,
         greenhouse_app_config,
-        config_manager
+        config_manager,
+        configured_alert_observer
     )
